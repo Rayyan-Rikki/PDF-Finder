@@ -25,7 +25,7 @@ export function PresentationForm({ sessions, presentation }: { sessions: any[], 
             <CardHeader>
                 <CardTitle>{presentation ? 'Edit Presentation' : 'Create New Presentation'}</CardTitle>
             </CardHeader>
-            <form action={handleSubmit}>
+            <form action={(formData) => { handleSubmit(formData) }}>
                 <input type="hidden" name="id" value={presentation?.id || ''} />
                 <input type="hidden" name="current_thumbnail_path" value={presentation?.thumbnail_path || ''} />
                 <input type="hidden" name="current_file_path" value={presentation?.file_path || ''} />

@@ -1,9 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { login, signup } from "./actions"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { LoginForm } from "@/components/auth/LoginForm"
+import { SignupForm } from "@/components/auth/SignupForm"
 
 export default function AuthPage() {
   return (
@@ -22,24 +20,7 @@ export default function AuthPage() {
                 Enter your email below to login to your account.
               </CardDescription>
             </CardHeader>
-            <form>
-              {/* Note: Server Actions are passed to formAction or action prop. 
-                  However, simple <form action={login}> works in Next.js App Router for Server Actions. */}
-              <input type="hidden" name="type" value="login" />
-              <CardContent className="space-y-2">
-                <div className="space-y-1">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" placeholder="m@example.com" required />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="password">Password</Label>
-                  <Input id="password" name="password" type="password" required />
-                </div>
-              </CardContent>
-              <CardFooter>
-                 <Button className="w-full" formAction={login}>Login</Button>
-              </CardFooter>
-            </form>
+            <LoginForm />
           </Card>
         </TabsContent>
         
@@ -51,24 +32,11 @@ export default function AuthPage() {
                 Create a new parent account.
               </CardDescription>
             </CardHeader>
-             <form>
-              <CardContent className="space-y-2">
-                <div className="space-y-1">
-                  <Label htmlFor="signup-email">Email</Label>
-                  <Input id="signup-email" name="email" type="email" placeholder="m@example.com" required />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input id="signup-password" name="password" type="password" required />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full" formAction={signup}>Create account</Button>
-              </CardFooter>
-            </form>
+            <SignupForm />
           </Card>
         </TabsContent>
       </Tabs>
     </div>
   )
 }
+

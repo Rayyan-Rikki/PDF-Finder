@@ -7,10 +7,6 @@ export default async function DashboardPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!error && !user) {
-    redirect('/auth')
-  }
-  
   if (!user) {
     redirect('/auth')
   }

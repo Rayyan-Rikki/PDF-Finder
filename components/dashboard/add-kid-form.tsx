@@ -25,7 +25,7 @@ export function AddKidForm() {
                 <CardTitle>Add a Kid Builder</CardTitle>
                 <CardDescription>Create an account for your child (under 13).</CardDescription>
             </CardHeader>
-            <form action={handleSubmit}>
+            <form action={(formData) => { handleSubmit(formData) }}>
                 <CardContent className="space-y-2">
                     <div className="space-y-1">
                         <Label htmlFor="kid-username">Username</Label>
