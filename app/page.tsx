@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { Search, ArrowRight, Download, Play, FileText, Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -111,7 +112,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
             <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Level up your learning</h2>
             <p className="text-lg text-slate-500 max-w-md">Find worksheets tailored to your grade and subject. Ready to start practicing?</p>
           </div>
-          <FilterSection classes={CLASSES} subjects={SUBJECTS} />
+          <Suspense fallback={<div className="h-16 animate-pulse bg-slate-200 rounded-xl w-full max-w-md"></div>}>
+            <FilterSection classes={CLASSES} subjects={SUBJECTS} />
+          </Suspense>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
