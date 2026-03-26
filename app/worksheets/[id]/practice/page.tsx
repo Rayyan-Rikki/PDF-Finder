@@ -1,24 +1,23 @@
 "use client";
 
-import { useEffect, useState, use as useReact } from "react";
-import { CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Loader2, Sparkles, RefreshCcw, Home, FileText, ChevronRight, Check, X, Trophy } from "lucide-react";
+import { useEffect, useState, use as useReact, useCallback } from "react";
+import { CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Sparkles, RefreshCcw, Home, FileText, Check, X, Trophy } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Worksheet, Question } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = useReact(params);
   const id = unwrappedParams.id;
-  const router = useRouter();
   
-  const [worksheet, setWorksheet] = useState<any>(null);
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState("");
   const [feedback, setFeedback] = useState<"none" | "correct" | "incorrect">("none");
@@ -29,11 +28,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   
   const supabase = createClient();
 
-  useEffect(() => {
-    fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
+   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const { data: ws, error: wsError } = await supabase
@@ -43,7 +38,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         .single();
       
       if (wsError) throw wsError;
-      setWorksheet(ws);
+      setWorksheet(ws as Worksheet);
 
       const { data: qs, error: qsError } = await supabase
         .from("questions")
@@ -53,14 +48,18 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         .order("created_at", { ascending: true });
       
       if (qsError) throw qsError;
-      setQuestions(qs || []);
-    } catch (err: any) {
+      setQuestions((qs as Question[]) || []);
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Failed to load worksheet quiz.");
+      setError(err instanceof Error ? err.message : "Failed to load worksheet quiz.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, supabase]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const checkAnswer = () => {
     if (!userAnswer.trim()) return;
@@ -259,7 +258,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                    </div>
                    <div className="space-y-2 text-center md:text-left">
                      <p className="text-2xl font-black uppercase tracking-tighter">
-                       {feedback === "correct" ? "Perfect! That's correct" : "Not quite right"}
+                       {feedback === "correct" ? "Perfect! That&apos;s correct" : "Not quite right"}
                      </p>
                      <div className="bg-black/10 p-4 rounded-2xl">
                         <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-1">Correct Answer</p>
@@ -267,7 +266,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                      </div>
                      {currentQ.explanation && (
                         <p className="text-sm font-medium opacity-90 leading-relaxed mt-4 italic">
-                           " {currentQ.explanation} "
+                           &quot; {currentQ.explanation} &quot;
                         </p>
                      )}
                    </div>

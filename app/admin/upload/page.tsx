@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 const CLASSES = [
   "LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", 
@@ -74,10 +73,10 @@ export default function UploadPage() {
       form.reset();
       setSelectedClass("");
       setSelectedSubject("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setStatus("error");
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setLoading(false);
     }
@@ -243,7 +242,7 @@ export default function UploadPage() {
               </div>
               <div className="flex gap-4">
                 <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">2</div>
-                <p className="text-sm text-slate-600">Review the generated draft on the "Review" page to ensure accuracy.</p>
+                <p className="text-sm text-slate-600">Review the generated draft on the &quot;Review&quot; page to ensure accuracy.</p>
               </div>
               <div className="flex gap-4">
                 <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">3</div>

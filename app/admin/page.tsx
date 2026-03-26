@@ -5,9 +5,7 @@ import {
   FileText, 
   CheckCircle2, 
   Clock, 
-  AlertCircle, 
   Upload, 
-  ArrowRight,
   BarChart3,
   BookOpen,
   Sparkles,
@@ -30,21 +28,22 @@ export default function AdminDashboard() {
   const supabase = createClient();
 
   useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
-    const { data: worksheets, error } = await supabase.from("worksheets").select("status");
-    if (!error && worksheets) {
-      setStats({
-        total: worksheets.length,
-        published: worksheets.filter(w => w.status === 'published').length,
-        processing: worksheets.filter(w => w.status === 'processing').length,
-        drafts: worksheets.filter(w => w.status === 'draft_generated').length
-      });
+    let ignore = false;
+    async function fetchStats() {
+      const { data: worksheets, error } = await supabase.from("worksheets").select("status");
+      if (!ignore && !error && worksheets) {
+        setStats({
+          total: worksheets.length,
+          published: worksheets.filter(w => w.status === 'published').length,
+          processing: worksheets.filter(w => w.status === 'processing').length,
+          drafts: worksheets.filter(w => w.status === 'draft_generated').length
+        });
+        setLoading(false);
+      }
     }
-    setLoading(false);
-  };
+    fetchStats();
+    return () => { ignore = true; };
+  }, [supabase]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-500">
@@ -181,7 +180,7 @@ export default function AdminDashboard() {
                 <div className="bg-slate-800/50 p-6 rounded-2xl">
                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 mb-3 underline decoration-blue-400/30 underline-offset-4">Developer Note</p>
                    <p className="text-xs text-slate-400 leading-relaxed font-medium italic">
-                     "Every worksheet processed by Gemini requires manual review before publishing to ensure 100% educational accuracy for students."
+                     &quot;Every worksheet processed by Gemini requires manual review before publishing to ensure 100% educational accuracy for students.&quot;
                    </p>
                 </div>
              </div>

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("worksheets")
       .upload(fileName, await file.arrayBuffer(), {
         contentType: file.type,
@@ -80,18 +80,18 @@ export async function POST(req: NextRequest) {
         message: "Worksheet uploaded and processed successfully." 
       });
 
-    } catch (processError: any) {
+    } catch (processError: unknown) {
       console.error("Extraction Processing Error:", processError);
       await supabase.from("worksheets").update({ status: "failed" }).eq("id", worksheet.id);
       return NextResponse.json({ 
         error: "Worksheet uploaded but extraction failed.", 
         worksheetId: worksheet.id,
-        details: processError.message 
+        details: processError instanceof Error ? processError.message : String(processError)
       }, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Global Upload/Extraction Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Server Error" }, { status: 500 });
   }
 }

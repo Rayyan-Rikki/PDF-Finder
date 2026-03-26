@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ArrowLeft, Download, Play, FileText, Calendar, Clock, BookOpen, GraduationCap, ChevronRight, Share2, Printer, Sparkles, Check } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default async function WorksheetPage({ params }: { params: Promise<{ id: string }> }) {
@@ -138,7 +138,7 @@ export default async function WorksheetPage({ params }: { params: Promise<{ id: 
                   <div className="space-y-4">
                     <h3 className="text-xl font-black text-blue-900 uppercase tracking-tight">AI-Enhanced Experience</h3>
                     <p className="text-blue-700 font-medium leading-relaxed opacity-80">
-                      Our system has analyzed this worksheet to provide a structured interactive experience. You'll get instant feedback for every answer, helping you master the material faster.
+                      Our system has analyzed this worksheet to provide a structured interactive experience. You&apos;ll get instant feedback for every answer, helping you master the material faster.
                     </p>
                     <div className="flex gap-4">
                        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-blue-600"><Check className="w-4 h-4" /> Instant Feedback</span>

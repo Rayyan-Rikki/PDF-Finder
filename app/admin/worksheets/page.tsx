@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, Filter, MoreHorizontal, ExternalLink, Eye, Edit, Trash2, Clock, CheckCircle2, AlertCircle, FileText, Loader2, ArrowRight } from "lucide-react";
+import { Plus, Search, Filter, ExternalLink, Eye, Trash2, Clock, CheckCircle2, FileText, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +9,34 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
+import { Worksheet } from "@/lib/types";
+import { useCallback } from "react";
+
 export default function WorksheetsPage() {
-  const [worksheets, setWorksheets] = useState<any[]>([]);
+  const [worksheets, setWorksheets] = useState<Worksheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const supabase = createClient();
 
+  const fetchWorksheets = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("worksheets")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching worksheets:", error);
+    } else {
+      setWorksheets(data || []);
+    }
+    setLoading(false);
+  }, [supabase]);
+
   useEffect(() => {
-    fetchWorksheets();
+    const load = async () => {
+      await fetchWorksheets();
+    };
+    load();
     
     // Set up real-time subscription for status updates
     const channel = supabase
@@ -29,21 +49,7 @@ export default function WorksheetsPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
-
-  const fetchWorksheets = async () => {
-    const { data, error } = await supabase
-      .from("worksheets")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching worksheets:", error);
-    } else {
-      setWorksheets(data || []);
-    }
-    setLoading(false);
-  };
+  }, [supabase, fetchWorksheets]);
 
   const filteredWorksheets = worksheets.filter(ws => 
     ws.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -203,7 +209,7 @@ export default function WorksheetsPage() {
           </div>
           <div>
             <p className="font-bold text-slate-900">Keep up the good work!</p>
-            <p className="text-sm text-slate-500">You've uploaded {worksheets.length} worksheets so far. Check back for processing updates.</p>
+            <p className="text-sm text-slate-500">You&apos;ve uploaded {worksheets.length} worksheets so far. Check back for processing updates.</p>
           </div>
         </div>
         <Button variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">

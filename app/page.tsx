@@ -1,15 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
-import { Search, GraduationCap, BookOpen, Layers, Filter, ArrowRight, Download, Play, FileText, Sparkles } from "lucide-react";
+import { Search, ArrowRight, Download, Play, FileText, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import FilterSection from "@/components/dashboard/FilterSection";
 
 const CLASSES = ["LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const SUBJECTS = ["Mathematics", "Science", "English", "Social Studies", "Hindi", "Environmental Studies", "Physics", "Chemistry", "Biology", "Computer Science", "History", "Geography", "Civics"];
 
-export default async function Home({ searchParams }: { searchParams: Promise<any> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const query = await searchParams;
   const selectedClass = query.class || "";
   const selectedSubject = query.subject || "";
@@ -167,7 +167,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<any
                  <Search className="w-12 h-12" />
                </div>
                <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Empty classroom!</h3>
-               <p className="text-slate-400 max-w-sm mx-auto font-medium text-lg mt-2">We couldn't find any worksheets matching your filters. Try selecting a different grade or subject.</p>
+               <p className="text-slate-400 max-w-sm mx-auto font-medium text-lg mt-2">We couldn&apos;t find any worksheets matching your filters. Try selecting a different grade or subject.</p>
                <Button variant="outline" asChild className="h-14 px-10 rounded-2xl border-slate-200 text-lg font-bold mt-8 hover:bg-slate-50">
                  <Link href="/">Clear All Filters</Link>
                </Button>

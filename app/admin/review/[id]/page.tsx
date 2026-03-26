@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState, use as useReact } from "react";
-import { CheckCircle2, Save, Trash2, Plus, ArrowLeft, Loader2, AlertCircle, FileText, LayoutList, Check, Sparkles, ExternalLink } from "lucide-react";
+import { useEffect, useState, use as useReact, useCallback } from "react";
+import { Trash2, Plus, ArrowLeft, Loader2, AlertCircle, FileText, Check, Sparkles, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Worksheet, Question } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -16,18 +17,14 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const unwrappedParams = useReact(params);
   const id = unwrappedParams.id;
   const router = useRouter();
-  const [worksheet, setWorksheet] = useState<any>(null);
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
   const supabase = createClient();
 
-  useEffect(() => {
-    fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch worksheet metadata
@@ -38,7 +35,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
         .single();
       
       if (wsError) throw wsError;
-      setWorksheet(ws);
+      setWorksheet(ws as Worksheet);
 
       // Fetch AI extraction result
       const { data: raw, error: rawError } = await supabase
@@ -54,17 +51,21 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       } else {
         throw new Error("No extraction data found for this worksheet.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Failed to load worksheet data.");
+      setError(err instanceof Error ? err.message : "Failed to load worksheet data.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, supabase]);
 
-  const updateQuestion = (index: number, field: string, value: any) => {
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const updateQuestion = (index: number, field: keyof Question, value: string | number | boolean) => {
     const updated = [...questions];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], [field]: value } as Question;
     setQuestions(updated);
   };
 
@@ -93,9 +94,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       if (!res.ok) throw new Error(data.error || "Publishing failed");
 
       router.push("/admin/worksheets");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setPublishing(false);
     }

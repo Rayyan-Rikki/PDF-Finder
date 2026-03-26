@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, Upload, BookOpen, Settings } from "lucide-react";
+import { LayoutDashboard, Upload, BookOpen } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (

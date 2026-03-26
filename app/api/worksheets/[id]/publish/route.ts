@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Question } from "@/lib/types";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { error: insertError } = await supabase
       .from("questions")
       .insert(
-        questions.map((q: any) => ({
+        questions.map((q: Question) => ({
           worksheet_id: id,
           question_text: q.question_text,
           answer_text: q.answer_text,
@@ -49,8 +50,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (updateError) throw updateError;
 
     return NextResponse.json({ success: true, message: "Worksheet published successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Publish Error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Server Error" }, { status: 500 });
   }
 }
