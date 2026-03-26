@@ -14,12 +14,12 @@ export default function FilterSection({ classes, subjects }: FilterSectionProps)
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const selectedClass = searchParams.get("class") || "";
-  const selectedSubject = searchParams.get("subject") || "";
+  const selectedClass = searchParams.get("class") || "all";
+  const selectedSubject = searchParams.get("subject") || "all";
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) {
+    if (value && value !== "all") {
       params.set(key, value);
     } else {
       params.delete(key);
@@ -39,7 +39,7 @@ export default function FilterSection({ classes, subjects }: FilterSectionProps)
             <SelectValue placeholder="All Grades" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Grades</SelectItem>
+            <SelectItem value="all">All Grades</SelectItem>
             {classes.map((c) => (
               <SelectItem key={c} value={c}>{c}</SelectItem>
             ))}
@@ -53,7 +53,7 @@ export default function FilterSection({ classes, subjects }: FilterSectionProps)
             <SelectValue placeholder="All Subjects" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Subjects</SelectItem>
+            <SelectItem value="all">All Subjects</SelectItem>
             {subjects.map((s) => (
               <SelectItem key={s} value={s}>{s}</SelectItem>
             ))}
@@ -61,7 +61,7 @@ export default function FilterSection({ classes, subjects }: FilterSectionProps)
         </Select>
       </div>
 
-      {(selectedClass || selectedSubject) && (
+      {(selectedClass !== "all" || selectedSubject !== "all") && (
         <Button variant="ghost" onClick={clearFilters} className="text-slate-500 hover:text-red-600">
           <X className="mr-2 h-4 w-4" />
           Clear
