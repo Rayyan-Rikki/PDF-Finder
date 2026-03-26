@@ -166,7 +166,7 @@ export default function WorksheetsPage() {
                         <div className="flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 opacity-40" />
                           <span className="tabular-nums">
-                            {new Date(ws.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            {ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
                           </span>
                         </div>
                       </td>

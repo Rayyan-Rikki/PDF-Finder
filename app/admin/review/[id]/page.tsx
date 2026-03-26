@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use as useReact, useCallback } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import { Trash2, Plus, ArrowLeft, Loader2, AlertCircle, FileText, Check, Sparkles, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Worksheet, Question } from "@/lib/types";
@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
-  const unwrappedParams = useReact(params);
+  const unwrappedParams = use(params);
   const id = unwrappedParams.id;
   const router = useRouter();
   const [worksheet, setWorksheet] = useState<Worksheet | null>(null);

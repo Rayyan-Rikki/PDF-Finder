@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use as useReact, useCallback } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import { CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Sparkles, RefreshCcw, Home, FileText, Check, X, Trophy } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Worksheet, Question } from "@/lib/types";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
-  const unwrappedParams = useReact(params);
+  const unwrappedParams = use(params);
   const id = unwrappedParams.id;
   
   const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
