@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rayyan Gen Alpha Builders",
-  description: "A platform for the next generation of builders to share projects, join sessions, and grow together.",
+  title: "PDF Finder - Worksheet to Quiz",
+  description: "Convert uploaded worksheet PDFs into reusable interactive quizzes using AI.",
 };
 
 export default function RootLayout({
