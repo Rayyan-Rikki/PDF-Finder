@@ -22,7 +22,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -245,7 +245,7 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                 <FileText className="w-16 h-16 text-slate-300 mb-4" />
                 <p className="text-slate-500 text-sm mb-4">You can refer to the original PDF while reviewing questions.</p>
                 <Button variant="outline" className="w-full" asChild>
-                  <a href={worksheet?.pdf_url} target="_blank" rel="noopener noreferrer">
+                  <a href={`/api/worksheets/${id}/pdf`} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Open PDF to Compare
                   </a>

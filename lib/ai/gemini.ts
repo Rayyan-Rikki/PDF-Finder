@@ -1,12 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  throw new Error("GEMINI_API_KEY is not set in environment variables");
-}
-
-const genAI = new GoogleGenerativeAI(apiKey);
-
 export interface ExtractedQuestion {
   question_text: string;
   answer_text: string;
@@ -20,6 +13,14 @@ export interface ExtractionResult {
 }
 
 export async function extractQuizFromPDF(pdfBase64: string): Promise<ExtractionResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not set in environment variables");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+
   // Use gemini-1.5-flash for faster and cost-effective extraction
   const model = genAI.getGenerativeModel({ 
     model: "gemini-1.5-flash",

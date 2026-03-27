@@ -4,9 +4,10 @@ export interface Worksheet {
   subject: string;
   class: string;
   topic?: string;
-  pdf_url: string;
+  storage_path: string;
   status: 'uploaded' | 'processing' | 'draft_generated' | 'published' | 'failed' | 'reviewed';
   created_at: string;
+  published_at?: string | null;
 }
 
 export interface Question {

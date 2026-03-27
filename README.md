@@ -1,91 +1,80 @@
-# Rayyan Gen Alpha Builders MVP
+# PDF Finder
 
-A production-ready web application built for the next generation of builders. Manage sessions, share projects, and interact with the community.
+PDF Finder turns worksheet PDFs into reviewable quiz content and publishes them to authenticated users.
 
-## Tech Stack
-- **Framework**: Next.js 14+ (App Router)
-- **Language**: TypeScript
-- **Styling**: TailwindCSS + shadcn/ui
-- **Backend**: Supabase (Auth, Postgres, Storage)
-- **Validation**: Zod + React Hook Form
-- **Testing**: Vitest (Unit) + Playwright (E2E)
+## Stack
 
-## Core Features
-- **Role-Based Access**: Admin, Parent, and Kid roles with strict RLS enforcement.
-- **Onboarding**: Parents can create managed Kid profiles for ages < 13.
-- **Session Management**: Admins can create and manage building sessions.
-- **Presentation Lifecycle**: Draft -> Submit -> Admin Review -> Approved Gallery.
-- **Interactions**: Voting (1 per user) and soft-deletable comments.
-- **File Storage**: Upload project thumbnails and PDF documentation.
+- Next.js 16
+- React 19
+- TypeScript
+- Supabase Auth, Postgres, Storage
+- Gemini for PDF question extraction
 
-## Local Setup
+## What Changed
 
-### 1. Prerequisites
-- Node.js 18+
-- Supabase account and a new project
+- User access now requires authentication.
+- Admin pages and worksheet management are protected by server-side role checks.
+- Worksheet PDFs are stored in a private bucket and served through signed URLs.
+- The database schema now matches the actual application.
 
-### 2. Database Setup
-1. Copy the contents of `supabase/migrations/20240130184000_init_schema.sql` into the Supabase SQL Editor and run it.
-2. (Optional) Run `supabase/seed.sql` to populate initial sessions.
+## Supabase Setup
 
-### 3. Environment Variables
-Create a `.env.local` file in the root:
+1. Apply the canonical migration:
+
+```sql
+-- File:
+-- supabase/migrations/20260326190000_auth_and_worksheet_security.sql
+```
+
+This migration is written as the canonical reset for this project. If your Supabase instance was using the older mixed schema from this repo, apply it on a clean database or run a reset first.
+
+2. Set these environment variables:
+
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-```
-*Note: Service role key is required for parents to create kid accounts via admin client.*
-
-### 4. Admin Bootstrap
-To mark yourself as an admin:
-```sql
-UPDATE profiles SET role = 'admin' WHERE user_id = 'your_auth_user_id';
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
-### 5. Install & Run
+3. Run the app:
+
 ```bash
 npm install
 npm run dev
 ```
 
-## Testing
+## Authentication
 
-### Unit Tests (Server Actions)
+### Admin login
+
+- Admin ID: `admin`
+- Password: `rayyan123`
+
+Internally this maps to the seeded Supabase account:
+
+- Email: `admin@pdffinder.local`
+- Password: `rayyan123`
+
+### Demo user
+
+- Email: `user@example.com`
+- Password: `rayyan123`
+
+### User self-registration
+
+- Users can register directly from `/auth`.
+- New registrations create a `profiles` row automatically through a database trigger.
+
+## Commands
+
 ```bash
+npm run lint
 npm run test
+npm run build
 ```
 
-### E2E Tests (Playwright)
-```bash
-npx playwright install
-npm run e2e
-```
+## Notes
 
-## Manual Test Plan
-
-### Parent Flow
-1. Sign up on `/auth`.
-2. Navigate to Dashboard.
-3. Use "Add Kid Builder" form to create a child account.
-4. Verify the kid account is listed (coming soon) or usable by logging in.
-
-### Kid / Presenter Flow
-1. Log in with kid credentials.
-2. Go to `/sessions` and register for an active session as "Presenter".
-3. Go to `/presentations/create` and save a project as Draft.
-4. Upload a thumbnail and PDF.
-5. Click "Submit for Review" on the project detail page.
-
-### Admin Flow
-1. Log in as an Admin.
-2. Navigate to `/admin`.
-3. Review submitted projects in the "Review Queue".
-4. Approve a project and verify it appears in the public Gallery (`/presentations`).
-5. Create a new Session in "Session Management".
-
-### Community Interaction
-1. On any "Approved" project page:
-2. Vote for the project (verify you cannot vote twice).
-3. Post a comment.
-4. (As author/admin) Delete a comment.
+- `npm run test` may fail in restricted sandboxes because `vitest` depends on spawning `esbuild`.
+- `npm run build` needs outbound access for Google Fonts unless you switch to local fonts.

@@ -16,7 +16,7 @@ export default function WorksheetsPage() {
   const [worksheets, setWorksheets] = useState<Worksheet[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const fetchWorksheets = useCallback(async () => {
     const { data, error } = await supabase

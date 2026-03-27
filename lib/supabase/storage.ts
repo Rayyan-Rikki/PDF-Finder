@@ -13,7 +13,7 @@ export async function ensureBucketExists(bucketName: string) {
   
   if (!exists) {
     const { error: createError } = await supabase.storage.createBucket(bucketName, {
-      public: true,
+      public: false,
     });
     
     if (createError) {

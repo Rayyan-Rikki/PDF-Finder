@@ -25,7 +25,7 @@ export default function AdminDashboard() {
     drafts: 0
   });
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     let ignore = false;

@@ -1,79 +1,48 @@
--- PDF Finder Database Schema
+-- Canonical schema for PDF Finder
+-- Apply via the migration in supabase/migrations/20260326190000_auth_and_worksheet_security.sql
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+create extension if not exists "pgcrypto";
+create extension if not exists "uuid-ossp";
 
--- Status Enum
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'worksheet_status') THEN
-        CREATE TYPE worksheet_status AS ENUM (
-          'uploaded',
-          'processing',
-          'draft_generated',
-          'reviewed',
-          'published',
-          'failed'
-        );
-    END IF;
-END $$;
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text unique,
+  display_name text,
+  role text not null default 'user' check (role in ('admin', 'user')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
--- Worksheets Table
-CREATE TABLE IF NOT EXISTS worksheets (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  class text NOT NULL,
-  subject text NOT NULL,
-  title text NOT NULL,
+create table if not exists public.worksheets (
+  id uuid primary key default uuid_generate_v4(),
+  class text not null,
+  subject text not null,
+  title text not null,
   topic text,
-  pdf_url text NOT NULL,
-  status worksheet_status DEFAULT 'uploaded',
-  created_at timestamptz DEFAULT now()
+  storage_path text not null,
+  status text not null default 'uploaded' check (status in ('uploaded', 'processing', 'draft_generated', 'reviewed', 'published', 'failed')),
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  published_at timestamptz
 );
 
--- Questions Table
-CREATE TABLE IF NOT EXISTS questions (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  worksheet_id uuid NOT NULL REFERENCES worksheets(id) ON DELETE CASCADE,
-  question_text text NOT NULL,
-  answer_text text NOT NULL,
-  question_type text DEFAULT 'short',
-  explanation text,
-  source_page integer,
-  is_published boolean DEFAULT false,
-  created_at timestamptz DEFAULT now()
-);
-
--- Raw Processing Table
-CREATE TABLE IF NOT EXISTS raw_processing (
-  id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  worksheet_id uuid NOT NULL REFERENCES worksheets(id) ON DELETE CASCADE,
+create table if not exists public.raw_processing (
+  id uuid primary key default uuid_generate_v4(),
+  worksheet_id uuid not null unique references public.worksheets(id) on delete cascade,
   raw_text text,
   ai_output_json jsonb,
-  created_at timestamptz DEFAULT now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
--- RLS Policies (Basic for MVP)
-ALTER TABLE worksheets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE raw_processing ENABLE ROW LEVEL SECURITY;
-
--- Allow public read for published worksheets and questions
-DROP POLICY IF EXISTS "Public read for published worksheets" ON worksheets;
-CREATE POLICY "Public read for published worksheets" ON worksheets
-  FOR SELECT USING (status = 'published');
-
-DROP POLICY IF EXISTS "Public read for published questions" ON questions;
-CREATE POLICY "Public read for published questions" ON questions
-  FOR SELECT USING (is_published = true);
-
--- Admin policies (assuming admin role or simple bypass for MVP)
-DROP POLICY IF EXISTS "Admin full access to worksheets" ON worksheets;
-CREATE POLICY "Admin full access to worksheets" ON worksheets
-  FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Admin full access to questions" ON questions;
-CREATE POLICY "Admin full access to questions" ON questions
-  FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Admin full access to raw_processing" ON raw_processing;
-CREATE POLICY "Admin full access to raw_processing" ON raw_processing
-  FOR ALL USING (true);
+create table if not exists public.questions (
+  id uuid primary key default uuid_generate_v4(),
+  worksheet_id uuid not null references public.worksheets(id) on delete cascade,
+  question_text text not null,
+  answer_text text not null,
+  question_type text not null default 'short' check (question_type in ('short', 'multiple_choice', 'true_false')),
+  explanation text,
+  source_page integer,
+  is_published boolean not null default false,
+  created_at timestamptz not null default now()
+);

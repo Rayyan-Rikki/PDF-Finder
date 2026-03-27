@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { requirePageAuth } from "@/lib/auth";
 import { ArrowLeft, Download, Play, FileText, Calendar, Clock, BookOpen, GraduationCap, ChevronRight, Share2, Printer, Sparkles, Check } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 
 export default async function WorksheetPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePageAuth("/worksheets");
   const { id } = await params;
   const supabase = await createClient();
 
@@ -101,7 +103,7 @@ export default async function WorksheetPage({ params }: { params: Promise<{ id: 
                      <Calendar className="w-6 h-6 text-blue-600" />
                      <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Published</p>
                      <p className="text-2xl font-black text-slate-900">
-                        {new Date(ws.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        {new Date(ws.published_at || ws.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                      </p>
                   </div>
                   <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center gap-2">
@@ -124,7 +126,7 @@ export default async function WorksheetPage({ params }: { params: Promise<{ id: 
                     </Link>
                   </Button>
                   <Button size="lg" variant="outline" className="h-20 px-10 rounded-[2rem] border-slate-200 text-xl font-bold hover:bg-white flex items-center justify-center gap-3 transition-all hover:border-blue-300 hover:text-blue-600" asChild>
-                    <a href={ws.pdf_url} download target="_blank" rel="noopener noreferrer">
+                    <a href={`/api/worksheets/${id}/pdf`} target="_blank" rel="noopener noreferrer">
                       <Download className="w-7 h-7" />
                       Download PDF
                     </a>
@@ -168,7 +170,7 @@ export default async function WorksheetPage({ params }: { params: Promise<{ id: 
                   </CardContent>
                   <CardFooter className="bg-white p-8 grid grid-cols-2 gap-4">
                      <Button variant="ghost" className="h-12 rounded-xl text-slate-400 hover:text-slate-600" asChild>
-                        <a href={ws.pdf_url} target="_blank" rel="noopener noreferrer">Full View</a>
+                        <a href={`/api/worksheets/${id}/pdf`} target="_blank" rel="noopener noreferrer">Full View</a>
                      </Button>
                      <Button variant="ghost" className="h-12 rounded-xl text-slate-400 hover:text-slate-600">
                         <Printer className="w-4 h-4 mr-2" />

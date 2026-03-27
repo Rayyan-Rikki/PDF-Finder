@@ -26,7 +26,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
    const fetchData = useCallback(async () => {
     setLoading(true);

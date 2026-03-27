@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { LayoutDashboard, Upload, BookOpen } from "lucide-react";
+import { requirePageAdmin } from "@/lib/auth";
+import LogoutButton from "@/components/auth/LogoutButton";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const auth = await requirePageAdmin("/admin");
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       {/* Sidebar */}
@@ -26,7 +30,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </nav>
         
-        <div className="mt-auto border-t pt-4">
+        <div className="mt-auto space-y-4 border-t pt-4">
+           <div className="px-3">
+             <p className="text-sm font-semibold text-slate-900">{auth.profile?.display_name || "Admin"}</p>
+             <p className="text-xs text-slate-400">{auth.user.email}</p>
+           </div>
+           <div className="px-3">
+             <LogoutButton className="w-full justify-center" redirectTo="/auth" />
+           </div>
            <p className="text-xs text-slate-400 px-3">Admin Portal v1.0</p>
         </div>
       </aside>

@@ -1,16 +1,19 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { requirePageAuth } from "@/lib/auth";
 import { Search, ArrowRight, Download, Play, FileText, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import FilterSection from "@/components/dashboard/FilterSection";
+import LogoutButton from "@/components/auth/LogoutButton";
 
 const CLASSES = ["LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const SUBJECTS = ["Mathematics", "Science", "English", "Social Studies", "Hindi", "Environmental Studies", "Physics", "Chemistry", "Biology", "Computer Science", "History", "Geography", "Civics"];
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+  const auth = await requirePageAuth("/");
   const query = await searchParams;
   const selectedClass = query.class || "";
   const selectedSubject = query.subject || "";
@@ -38,6 +41,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 relative z-10">
           <div className="flex flex-col md:flex-row items-center gap-16">
             <div className="flex-1 space-y-8 text-center md:text-left">
+              <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
+                <Badge className="rounded-full bg-slate-900 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white">
+                  {auth.profile?.role === "admin" ? "Admin Access" : "Signed In"}
+                </Badge>
+                <span className="text-sm font-medium text-slate-500">
+                  {auth.profile?.display_name || auth.user.email}
+                </span>
+                <LogoutButton variant="ghost" className="rounded-full text-slate-600" />
+              </div>
               <div className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-full animate-in fade-in slide-in-from-bottom-2 duration-700">
                 <Sparkles className="w-5 h-5 mr-2" />
                 <span className="text-sm font-bold uppercase tracking-wider">AI-Powered Question Engine</span>
@@ -55,9 +67,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
                     <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl border-slate-200 text-xl font-bold hover:bg-slate-50 transition-all hover:scale-105 active:scale-95" asChild>
-                   <Link href="/admin">Admin Portal</Link>
-                </Button>
+                {auth.profile?.role === "admin" && (
+                  <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl border-slate-200 text-xl font-bold hover:bg-slate-50 transition-all hover:scale-105 active:scale-95" asChild>
+                    <Link href="/admin">Admin Portal</Link>
+                  </Button>
+                )}
               </div>
             </div>
             
@@ -150,7 +164,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
                 </CardContent>
                 <CardFooter className="px-8 pb-10 pt-4 grid grid-cols-2 gap-4">
                   <Button variant="outline" className="h-14 border-slate-200 rounded-2xl font-black uppercase text-xs tracking-widest hover:border-blue-200 hover:text-blue-600 transition-all" asChild>
-                    <a href={ws.pdf_url} target="_blank" rel="noopener noreferrer">
+                    <a href={`/api/worksheets/${ws.id}/pdf`} target="_blank" rel="noopener noreferrer">
                       <Download className="w-5 h-5 mr-2" />
                       PDF
                     </a>
@@ -210,7 +224,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
            </div>
            <nav className="flex flex-wrap justify-center gap-8">
              <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
-             <Link href="/admin" className="hover:text-blue-600 transition-colors">Admin</Link>
+             {auth.profile?.role === "admin" && (
+               <Link href="/admin" className="hover:text-blue-600 transition-colors">Admin</Link>
+             )}
              <Link href="#browse" className="hover:text-blue-600 transition-colors">Browse</Link>
              <Link href="#" className="hover:text-blue-600 transition-colors">Contact</Link>
            </nav>

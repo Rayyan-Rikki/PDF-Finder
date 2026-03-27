@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Question } from "@/lib/types";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -11,43 +11,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Invalid questions data" }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    const authClient = await createClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
 
-    // 1. Delete existing questions for this worksheet (if any)
-    const { error: deleteError } = await supabase
-      .from("questions")
-      .delete()
-      .eq("worksheet_id", id);
-
-    if (deleteError) throw deleteError;
-
-    // 2. Insert the reviewed questions
-    const { error: insertError } = await supabase
-      .from("questions")
-      .insert(
-        questions.map((q: Question) => ({
-          worksheet_id: id,
-          question_text: q.question_text,
-          answer_text: q.answer_text,
-          question_type: q.question_type || "short",
-          explanation: q.explanation || "",
-          source_page: q.source_page || null,
-          is_published: true,
-        }))
-      );
-
-    if (insertError) {
-      console.error("Insert Questions Error:", insertError);
-      throw new Error(`Failed to insert questions: ${insertError.message}`);
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     }
 
-    // 3. Update worksheet status
-    const { error: updateError } = await supabase
-      .from("worksheets")
-      .update({ status: "published" })
-      .eq("id", id);
+    const { data: profile } = await authClient
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (updateError) throw updateError;
+    if (profile?.role !== "admin") {
+      return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+    }
+
+    const supabase = createAdminClient();
+
+    const { error } = await supabase.rpc("publish_worksheet", {
+      p_worksheet_id: id,
+      p_questions: questions,
+    });
+
+    if (error) throw error;
 
     return NextResponse.json({ success: true, message: "Worksheet published successfully" });
   } catch (error: unknown) {

@@ -1,10 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { extractQuizFromPDF } from "@/lib/ai/gemini";
 import { ensureBucketExists } from "@/lib/supabase/storage";
 
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 export async function POST(req: NextRequest) {
   try {
+    const authClient = await createClient();
+    const {
+      data: { user },
+    } = await authClient.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    }
+
+    const { data: profile } = await authClient
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.role !== "admin") {
+      return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const class_name = formData.get("class") as string;
@@ -16,18 +38,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields: file, class, subject, title are required." }, { status: 400 });
     }
 
+    if (file.type !== "application/pdf") {
+      return NextResponse.json({ error: "Only PDF uploads are supported." }, { status: 400 });
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: "PDF exceeds the 10MB upload limit." }, { status: 400 });
+    }
+
     const supabase = createAdminClient();
 
     // 0. Ensure bucket exists
     await ensureBucketExists("worksheets");
 
     // 1. Upload to Storage
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `${class_name}/${subject}/${fileName}`;
     
     const { error: uploadError } = await supabase.storage
       .from("worksheets")
-      .upload(fileName, await file.arrayBuffer(), {
+      .upload(filePath, fileBuffer, {
         contentType: file.type,
       });
 
@@ -35,8 +67,6 @@ export async function POST(req: NextRequest) {
       console.error("Storage Upload Error:", uploadError);
       throw new Error(`Failed to upload PDF: ${uploadError.message}`);
     }
-
-    const { data: { publicUrl } } = supabase.storage.from("worksheets").getPublicUrl(fileName);
 
     // 2. Create Worksheet Record
     const { data: worksheet, error: worksheetError } = await supabase
@@ -46,28 +76,31 @@ export async function POST(req: NextRequest) {
         subject,
         title,
         topic,
-        pdf_url: publicUrl,
+        storage_path: filePath,
         status: "processing",
+        created_by: user.id,
       })
-      .select()
+      .select("id")
       .single();
 
     if (worksheetError) {
       console.error("Database Insert Error:", worksheetError);
+      await supabase.storage.from("worksheets").remove([filePath]);
       throw new Error(`Failed to create worksheet record: ${worksheetError.message}`);
     }
 
     // 3. Process with Gemini
     try {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const base64 = buffer.toString("base64");
+      const base64 = fileBuffer.toString("base64");
       
       const extractionResult = await extractQuizFromPDF(base64);
 
       // 4. Store Raw Processing & Update status
-      const { error: rawError } = await supabase.from("raw_processing").insert({
+      const { error: rawError } = await supabase.from("raw_processing").upsert({
         worksheet_id: worksheet.id,
         ai_output_json: extractionResult,
+      }, {
+        onConflict: "worksheet_id",
       });
 
       if (rawError) console.error("Raw Processing Insert Error:", rawError);
@@ -86,7 +119,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ 
         error: "Worksheet uploaded but extraction failed.", 
         worksheetId: worksheet.id,
-        details: processError instanceof Error ? processError.message : String(processError)
+        details: processError instanceof Error ? processError.message : "AI extraction failed."
       }, { status: 500 });
     }
 
