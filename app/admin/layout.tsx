@@ -36,6 +36,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
              <p className="text-xs text-slate-400">{auth.user.email}</p>
            </div>
            <div className="px-3">
+             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">Created By</p>
+             <p className="mt-1 text-base font-black tracking-tight text-slate-900">Rayyan Shaik</p>
+           </div>
+           <div className="px-3">
              <LogoutButton className="w-full justify-center" redirectTo="/auth" />
            </div>
            <p className="text-xs text-slate-400 px-3">Admin Portal v1.0</p>

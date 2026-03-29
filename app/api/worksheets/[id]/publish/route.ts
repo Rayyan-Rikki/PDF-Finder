@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateQuestions } from "@/lib/questions";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +10,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!questions || !Array.isArray(questions)) {
       return NextResponse.json({ error: "Invalid questions data" }, { status: 400 });
+    }
+
+    const validationIssues = validateQuestions(questions);
+    if (validationIssues.length > 0) {
+      const firstIssue = validationIssues[0];
+      return NextResponse.json(
+        { error: `Question ${firstIssue.index + 1}: ${firstIssue.message}` },
+        { status: 400 }
+      );
     }
 
     const authClient = await createClient();

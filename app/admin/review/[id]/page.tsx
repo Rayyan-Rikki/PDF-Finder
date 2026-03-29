@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, use, useCallback } from "react";
-import { Trash2, Plus, ArrowLeft, Loader2, AlertCircle, FileText, Check, Sparkles, ExternalLink } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Loader2, AlertCircle, FileText, Check, Sparkles, ExternalLink, Wand2 } from "lucide-react";
+import { validateQuestions } from "@/lib/questions";
 import { createClient } from "@/lib/supabase/client";
-import { Worksheet, Question } from "@/lib/types";
+import { Worksheet, Question, ExtractionMetadata, QuestionGenerationBasis, QuestionGradingMode } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +14,131 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 
+type QuestionEditorState = {
+  gradingModeTouched: boolean;
+  answerOptionsTouched: boolean;
+  numericToleranceTouched: boolean;
+  minimumKeywordMatchesTouched: boolean;
+};
+
+const DEFAULT_TRUE_FALSE_OPTIONS = ["True", "False"];
+
+function getDefaultLayoutHint(questionType: NonNullable<Question["question_type"]>): NonNullable<Question["layout_hint"]> {
+  switch (questionType) {
+    case "multiple_choice":
+      return "mcq_vertical";
+    case "true_false":
+      return "true_false_row";
+    default:
+      return "short_line";
+  }
+}
+
+function isNumericAnswer(value: string) {
+  return /^-?[0-9]+(\.[0-9]+)?$/.test(value.trim());
+}
+
+function createEditorState(): QuestionEditorState {
+  return {
+    gradingModeTouched: false,
+    answerOptionsTouched: false,
+    numericToleranceTouched: false,
+    minimumKeywordMatchesTouched: false,
+  };
+}
+
+function applySmartDefaults(question: Question, editorState?: QuestionEditorState): Question {
+  const questionType = (question.question_type || "short") as NonNullable<Question["question_type"]>;
+  const nextQuestion: Question = {
+    ...question,
+    question_type: questionType,
+    source_order: question.source_order,
+    layout_hint: question.layout_hint,
+    answer_options: question.answer_options || [],
+    accepted_answer_variants: question.accepted_answer_variants || [],
+    required_keywords: question.required_keywords || [],
+  };
+
+  if (
+    questionType === "true_false" &&
+    (!editorState?.answerOptionsTouched || (nextQuestion.answer_options || []).length === 0)
+  ) {
+    nextQuestion.answer_options = DEFAULT_TRUE_FALSE_OPTIONS;
+  }
+
+  if (!nextQuestion.layout_hint) {
+    nextQuestion.layout_hint = getDefaultLayoutHint(questionType);
+  }
+
+  const hasKeywords = (nextQuestion.required_keywords || []).some((keyword) => keyword.trim().length > 0);
+  const hasNumericAnswer = isNumericAnswer(nextQuestion.answer_text || "");
+  const shouldKeepCurrentGrading = editorState?.gradingModeTouched;
+
+  if (questionType !== "short") {
+    if (!shouldKeepCurrentGrading) {
+      nextQuestion.grading_mode = "exact";
+    }
+    if (!editorState?.numericToleranceTouched) {
+      nextQuestion.numeric_tolerance = undefined;
+    }
+    if (!editorState?.minimumKeywordMatchesTouched) {
+      nextQuestion.minimum_keyword_matches = undefined;
+    }
+    return nextQuestion;
+  }
+
+  if (!shouldKeepCurrentGrading) {
+    if (hasKeywords) {
+      nextQuestion.grading_mode = "keyword_match";
+    } else if (hasNumericAnswer) {
+      nextQuestion.grading_mode = "numeric_tolerance";
+    } else {
+      nextQuestion.grading_mode = nextQuestion.grading_mode || "exact";
+    }
+  } else {
+    nextQuestion.grading_mode = nextQuestion.grading_mode || "exact";
+  }
+
+  if (nextQuestion.grading_mode === "keyword_match") {
+    if (!editorState?.minimumKeywordMatchesTouched) {
+      nextQuestion.minimum_keyword_matches =
+        hasKeywords && (nextQuestion.minimum_keyword_matches === undefined || nextQuestion.minimum_keyword_matches === null)
+          ? 1
+          : nextQuestion.minimum_keyword_matches;
+    }
+    if (!editorState?.numericToleranceTouched) {
+      nextQuestion.numeric_tolerance = undefined;
+    }
+  } else if (nextQuestion.grading_mode === "numeric_tolerance") {
+    if (!editorState?.numericToleranceTouched) {
+      nextQuestion.numeric_tolerance =
+        nextQuestion.numeric_tolerance === undefined || nextQuestion.numeric_tolerance === null
+          ? 0
+          : nextQuestion.numeric_tolerance;
+    }
+    if (!editorState?.minimumKeywordMatchesTouched) {
+      nextQuestion.minimum_keyword_matches = undefined;
+    }
+  } else {
+    if (!editorState?.numericToleranceTouched) {
+      nextQuestion.numeric_tolerance = undefined;
+    }
+    if (!editorState?.minimumKeywordMatchesTouched) {
+      nextQuestion.minimum_keyword_matches = undefined;
+    }
+  }
+
+  return nextQuestion;
+}
+
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   const id = unwrappedParams.id;
   const router = useRouter();
   const [worksheet, setWorksheet] = useState<Worksheet | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [editorStates, setEditorStates] = useState<QuestionEditorState[]>([]);
+  const [metadata, setMetadata] = useState<ExtractionMetadata | null>(null);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState("");
@@ -47,7 +167,37 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
       if (rawError) throw rawError;
       
       if (raw && raw.ai_output_json && Array.isArray(raw.ai_output_json.questions)) {
-        setQuestions(raw.ai_output_json.questions);
+        setMetadata({
+          worksheet_summary:
+            typeof raw.ai_output_json.worksheet_summary === "string" ? raw.ai_output_json.worksheet_summary : undefined,
+          detected_class_level:
+            typeof raw.ai_output_json.detected_class_level === "string"
+              ? raw.ai_output_json.detected_class_level
+              : undefined,
+          detected_subject:
+            typeof raw.ai_output_json.detected_subject === "string" ? raw.ai_output_json.detected_subject : undefined,
+          style_notes: typeof raw.ai_output_json.style_notes === "string" ? raw.ai_output_json.style_notes : undefined,
+          generation_mode:
+            raw.ai_output_json.generation_mode === "generate_similar" || raw.ai_output_json.generation_mode === "preserve_structure"
+              ? raw.ai_output_json.generation_mode
+              : undefined,
+        });
+        const loadedQuestions = (raw.ai_output_json.questions as Question[])
+          .map((question, index) =>
+            applySmartDefaults(
+              {
+                ...question,
+                source_order:
+                  typeof question.source_order === "number" && Number.isFinite(question.source_order)
+                    ? question.source_order
+                    : index + 1,
+              },
+              createEditorState()
+            )
+          )
+          .sort((a, b) => (a.source_order || 0) - (b.source_order || 0));
+        setQuestions(loadedQuestions);
+        setEditorStates(loadedQuestions.map(() => createEditorState()));
       } else {
         throw new Error("No extraction data found for this worksheet.");
       }
@@ -63,31 +213,125 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
     fetchData();
   }, [fetchData]);
 
-  const updateQuestion = (index: number, field: keyof Question, value: string | number | boolean) => {
+  const updateQuestion = (
+    index: number,
+    field: keyof Question,
+    value: string | number | boolean | string[] | QuestionGenerationBasis | QuestionGradingMode | undefined
+  ) => {
+    const editorState = editorStates[index] || createEditorState();
+    const nextEditorStates = [...editorStates];
+    const nextState = { ...editorState };
+
+    if (field === "grading_mode") {
+      nextState.gradingModeTouched = true;
+    }
+
+    if (field === "answer_options") {
+      nextState.answerOptionsTouched = true;
+    }
+
+    if (field === "numeric_tolerance") {
+      nextState.numericToleranceTouched = true;
+    }
+
+    if (field === "minimum_keyword_matches") {
+      nextState.minimumKeywordMatchesTouched = true;
+    }
+
+    nextEditorStates[index] = nextState;
+
     const updated = [...questions];
-    updated[index] = { ...updated[index], [field]: value } as Question;
+    updated[index] = applySmartDefaults(
+      { ...updated[index], [field]: value } as Question,
+      nextState
+    );
+
+    if (field === "source_order") {
+      const sortedPairs = updated
+        .map((questionItem, questionIndex) => ({
+          question: questionItem,
+          editorState: nextEditorStates[questionIndex],
+        }))
+        .sort((a, b) => (a.question.source_order || 0) - (b.question.source_order || 0));
+
+      setQuestions(sortedPairs.map((pair) => pair.question));
+      setEditorStates(sortedPairs.map((pair) => pair.editorState));
+      return;
+    }
+
+    setEditorStates(nextEditorStates);
     setQuestions(updated);
   };
 
   const removeQuestion = (index: number) => {
     setQuestions(questions.filter((_, i) => i !== index));
+    setEditorStates(editorStates.filter((_, i) => i !== index));
   };
 
   const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      { question_text: "", answer_text: "", question_type: "short", explanation: "", source_page: 1 }
-    ]);
+    const nextQuestion = applySmartDefaults(
+      {
+        question_text: "",
+        answer_text: "",
+        answer_options: [],
+        accepted_answer_variants: [],
+        question_type: "short",
+        grading_mode: "exact",
+        numeric_tolerance: undefined,
+        required_keywords: [],
+        minimum_keyword_matches: undefined,
+        explanation: "",
+        source_page: 1,
+        source_order: questions.length + 1,
+        layout_hint: "short_line",
+        generation_basis: "manual",
+        style_notes: "",
+      },
+      createEditorState()
+    );
+    setQuestions([...questions, nextQuestion]);
+    setEditorStates([...editorStates, createEditorState()]);
   };
 
+  const getGenerationBadge = (basis?: QuestionGenerationBasis) => {
+    switch (basis) {
+      case "extracted":
+        return <Badge variant="outline">Extracted From PDF</Badge>;
+      case "manual":
+        return <Badge variant="secondary">Manual</Badge>;
+      default:
+        return <Badge variant="info">Generated Similar</Badge>;
+    }
+  };
+
+  const variantsToText = (variants?: string[]) => (variants && variants.length > 0 ? variants.join("\n") : "");
+
+  const textToVariants = (value: string) =>
+    value
+      .split(/\r?\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const optionsToText = (options?: string[]) => (options && options.length > 0 ? options.join("\n") : "");
+  const keywordsToText = (keywords?: string[]) => (keywords && keywords.length > 0 ? keywords.join("\n") : "");
+  const validationIssues = validateQuestions(questions);
+
   const handlePublish = async () => {
+    if (validationIssues.length > 0) {
+      const firstIssue = validationIssues[0];
+      setError(`Question ${firstIssue.index + 1}: ${firstIssue.message}`);
+      return;
+    }
+
     setPublishing(true);
     setError("");
     try {
       const res = await fetch(`/api/worksheets/${id}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questions }),
+        body: JSON.stringify({
+          questions: [...questions].sort((a, b) => (a.source_order || 0) - (b.source_order || 0)),
+        }),
       });
 
       const data = await res.json();
@@ -164,9 +408,50 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
           <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex gap-3 text-blue-800">
             <Sparkles className="w-5 h-5 flex-shrink-0" />
             <p className="text-sm">
-              <span className="font-bold">AI Extraction Complete!</span> These questions were extracted by Gemini. Please review, edit, or remove them before publishing to students.
+              <span className="font-bold">AI Extraction Complete.</span> Gemini parsed the worksheet once and stored a draft that preserves the PDF's question type and order. Review it before publishing to students.
             </p>
           </div>
+
+          {validationIssues.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-900">
+              <p className="text-sm font-semibold">Publishing is blocked until validation issues are fixed.</p>
+              <p className="text-sm mt-1">First issue: Question {validationIssues[0].index + 1}: {validationIssues[0].message}</p>
+            </div>
+          )}
+
+          {metadata && (
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Wand2 className="w-5 h-5 text-blue-600" />
+                  Worksheet Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm text-slate-600">
+                {metadata.worksheet_summary && (
+                  <div>
+                    <p className="font-semibold text-slate-900">Summary</p>
+                    <p>{metadata.worksheet_summary}</p>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {metadata.detected_subject && <Badge variant="outline">{metadata.detected_subject}</Badge>}
+                  {metadata.detected_class_level && <Badge variant="outline">{metadata.detected_class_level}</Badge>}
+                  {metadata.generation_mode && (
+                    <Badge variant="info">
+                      Mode: {metadata.generation_mode === "preserve_structure" ? "preserve_structure" : metadata.generation_mode}
+                    </Badge>
+                  )}
+                </div>
+                {metadata.style_notes && (
+                  <div>
+                    <p className="font-semibold text-slate-900">Style Notes</p>
+                    <p>{metadata.style_notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {questions.map((q, idx) => (
             <Card key={idx} className="border-slate-200 shadow-sm relative group hover:border-blue-200 transition-colors">
@@ -180,7 +465,9 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                   <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
                     {idx + 1}
                   </div>
-                  <CardTitle className="text-lg">Question {idx + 1}</CardTitle>
+                  <CardTitle className="text-lg">Question {q.source_order || idx + 1}</CardTitle>
+                  {getGenerationBadge(q.generation_basis)}
+                  {validationIssues.some((issue) => issue.index === idx) && <Badge variant="warning">Needs Fix</Badge>}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4 px-6 pb-6">
@@ -204,14 +491,140 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label>Question Type</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {(["short", "multiple_choice", "true_false"] as const).map((type) => (
+                        <Button
+                          key={type}
+                          type="button"
+                          variant={q.question_type === type ? "default" : "outline"}
+                          className="h-9"
+                          onClick={() => updateQuestion(idx, "question_type", type)}
+                        >
+                          {type === "short" ? "Short" : type === "multiple_choice" ? "Multiple Choice" : "True / False"}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>Answer Options {q.question_type === "short" ? "(Optional)" : ""}</Label>
+                    <Textarea
+                      value={optionsToText(q.answer_options)}
+                      onChange={(e) => updateQuestion(idx, "answer_options", textToVariants(e.target.value))}
+                      className="min-h-[80px] border-slate-200 focus:ring-blue-500"
+                      placeholder={
+                        q.question_type === "true_false"
+                          ? "True\nFalse"
+                          : "Add one option per line.\nExample:\nMercury\nVenus\nEarth\nMars"
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Source Page</Label>
                     <Input 
                       type="number"
                       value={q.source_page || 1} 
-                      onChange={(e) => updateQuestion(idx, 'source_page', parseInt(e.target.value))}
+                      onChange={(e) => updateQuestion(idx, 'source_page', parseInt(e.target.value, 10) || 1)}
                       className="border-slate-200 focus:ring-blue-500"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Source Order</Label>
+                    <Input 
+                      type="number"
+                      value={q.source_order || idx + 1}
+                      onChange={(e) => updateQuestion(idx, 'source_order', parseInt(e.target.value, 10) || idx + 1)}
+                      className="border-slate-200 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Layout Hint</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {(["mcq_vertical", "mcq_inline", "short_line", "paragraph_answer", "true_false_row", "unknown"] as const).map((layoutHint) => (
+                      <Button
+                        key={layoutHint}
+                        type="button"
+                        variant={(q.layout_hint || "unknown") === layoutHint ? "default" : "outline"}
+                        className="h-9"
+                        onClick={() => updateQuestion(idx, "layout_hint", layoutHint)}
+                      >
+                        {layoutHint}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Generation Basis</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {(["generated_similar", "extracted", "manual"] as const).map((basis) => (
+                      <Button
+                        key={basis}
+                        type="button"
+                        variant={q.generation_basis === basis ? "default" : "outline"}
+                        className="h-9"
+                        onClick={() => updateQuestion(idx, "generation_basis", basis)}
+                      >
+                        {basis === "generated_similar"
+                          ? "Generated Similar"
+                          : basis === "extracted"
+                            ? "Extracted"
+                            : "Manual"}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Grading Mode</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {(["exact", "numeric_tolerance", "keyword_match"] as const).map((mode) => (
+                        <Button
+                          key={mode}
+                          type="button"
+                          variant={(q.grading_mode || "exact") === mode ? "default" : "outline"}
+                          className="h-9"
+                          onClick={() => updateQuestion(idx, "grading_mode", mode)}
+                        >
+                          {mode === "exact" ? "Exact" : mode === "numeric_tolerance" ? "Numeric Tolerance" : "Keyword Match"}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{(q.grading_mode || "exact") === "keyword_match" ? "Minimum Keyword Matches" : "Numeric Tolerance"}</Label>
+                    <Input
+                      type="number"
+                      step={(q.grading_mode || "exact") === "keyword_match" ? "1" : "any"}
+                      value={(q.grading_mode || "exact") === "keyword_match" ? (q.minimum_keyword_matches ?? "") : (q.numeric_tolerance ?? "")}
+                      onChange={(e) =>
+                        (q.grading_mode || "exact") === "keyword_match"
+                          ? updateQuestion(
+                              idx,
+                              "minimum_keyword_matches",
+                              e.target.value === "" ? undefined : Number(e.target.value)
+                            )
+                          : updateQuestion(
+                              idx,
+                              "numeric_tolerance",
+                              e.target.value === "" ? undefined : Number(e.target.value)
+                            )
+                      }
+                      className="border-slate-200 focus:ring-blue-500"
+                      placeholder={(q.grading_mode || "exact") === "keyword_match" ? "e.g. 2" : "e.g. 0.1"}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Required Keywords {(q.grading_mode || "exact") === "keyword_match" ? "" : "(Optional)"}</Label>
+                  <Textarea
+                    value={keywordsToText(q.required_keywords)}
+                    onChange={(e) => updateQuestion(idx, "required_keywords", textToVariants(e.target.value))}
+                    className="min-h-[80px] border-slate-200 focus:ring-blue-500"
+                    placeholder={"Add one keyword or phrase per line.\nExample:\nphotosynthesis\nchlorophyll\nsunlight"}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Explanation (Optional)</Label>
@@ -220,6 +633,24 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
                     onChange={(e) => updateQuestion(idx, 'explanation', e.target.value)}
                     className="min-h-[60px] border-slate-200 focus:ring-blue-500"
                     placeholder="Briefly explain the answer..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Accepted Answer Variants (Optional)</Label>
+                  <Textarea
+                    value={variantsToText(q.accepted_answer_variants)}
+                    onChange={(e) => updateQuestion(idx, "accepted_answer_variants", textToVariants(e.target.value))}
+                    className="min-h-[80px] border-slate-200 focus:ring-blue-500"
+                    placeholder={"Add one alternate correct answer per line.\nExample:\nH2O\nWater"}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Style Match Notes (Optional)</Label>
+                  <Textarea
+                    value={q.style_notes || ""}
+                    onChange={(e) => updateQuestion(idx, "style_notes", e.target.value)}
+                    className="min-h-[60px] border-slate-200 focus:ring-blue-500"
+                    placeholder="Why does this question match the worksheet style?"
                   />
                 </div>
               </CardContent>

@@ -31,6 +31,21 @@ export default async function WorksheetPage({ params }: { params: Promise<{ id: 
     );
   }
 
+  if (ws.status !== "published") {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 gap-6">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-300">
+           <FileText className="w-10 h-10" />
+        </div>
+        <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Worksheet unavailable</h1>
+        <p className="max-w-md text-center text-slate-500">This worksheet is not currently published for students.</p>
+        <Button size="lg" className="rounded-2xl" asChild>
+          <Link href="/">Return Home</Link>
+        </Button>
+      </div>
+    );
+  }
+
   // Fetch question count
   const { count } = await supabase
     .from("questions")

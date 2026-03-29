@@ -54,11 +54,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
                 <Sparkles className="w-5 h-5 mr-2" />
                 <span className="text-sm font-bold uppercase tracking-wider">AI-Powered Question Engine</span>
               </div>
+              <div className="space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-75">
+                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Created By</p>
+                <p className="text-2xl md:text-3xl font-black tracking-tight text-slate-900">Rayyan Shaik</p>
+              </div>
               <h1 className="text-6xl md:text-7xl font-black tracking-tighter text-slate-900 leading-[1.05] animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
                 Master your skills with <span className="text-blue-600">PDF Finder</span>
               </h1>
               <p className="text-xl text-slate-500 max-w-lg leading-relaxed mx-auto md:mx-0 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200">
-                The ultimate companion for students. Turn static worksheet PDFs into interactive practice sessions with instant feedback.
+                Turn worksheet PDFs into structured practice sessions with consistent question types, instant feedback, and review-backed publishing.
               </p>
               <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-300">
                 <Button size="lg" className="bg-blue-600 hover:bg-blue-700 h-16 px-10 rounded-2xl shadow-xl shadow-blue-200 text-xl font-bold group transition-all hover:scale-105 active:scale-95" asChild>
@@ -72,6 +76,20 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
                     <Link href="/admin">Admin Portal</Link>
                   </Button>
                 )}
+              </div>
+              <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-400">
+                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Question Types</p>
+                  <p className="text-sm font-semibold text-slate-700">MCQ, short answer, and true/false</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Publishing Model</p>
+                  <p className="text-sm font-semibold text-slate-700">Parsed once, shared consistently</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Student Experience</p>
+                  <p className="text-sm font-semibold text-slate-700">Immediate feedback and clean practice flow</p>
+                </div>
               </div>
             </div>
             
@@ -104,8 +122,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
                         <Play className="w-10 h-10 ml-1.5" />
                       </div>
                       <div className="text-center">
-                        <p className="font-black text-2xl text-slate-800">Quiz Interface</p>
-                        <p className="text-slate-400 font-medium">Interactive & Fun</p>
+                        <p className="font-black text-2xl text-slate-800">Worksheet to Quiz</p>
+                        <p className="text-slate-400 font-medium">Structured, consistent, and review-ready</p>
                       </div>
                     </div>
                   </div>
@@ -119,12 +137,47 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
         </div>
       </header>
 
+      <section className="border-b border-slate-200 bg-slate-900 text-white">
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+            <div className="space-y-3">
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-blue-300">Workflow</p>
+              <h2 className="text-3xl md:text-4xl font-black tracking-tight">Upload once. Review once. Deliver the same experience to every student.</h2>
+              <p className="max-w-2xl text-slate-300 text-sm md:text-base">
+                The worksheet is parsed a single time, reviewed by admin, then published as a stable shared interface for all users.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-slate-200">
+              Consistency first: question type, order, and feedback stay the same for every learner.
+            </div>
+          </div>
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-300">01</p>
+              <h3 className="mt-3 text-xl font-black">Parse the worksheet</h3>
+              <p className="mt-2 text-sm text-slate-300">Gemini extracts question type, order, and answer structure from the uploaded PDF.</p>
+            </div>
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-300">02</p>
+              <h3 className="mt-3 text-xl font-black">Review the draft</h3>
+              <p className="mt-2 text-sm text-slate-300">Admins correct anything needed before the worksheet becomes student-facing.</p>
+            </div>
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-300">03</p>
+              <h3 className="mt-3 text-xl font-black">Publish with confidence</h3>
+              <p className="mt-2 text-sm text-slate-300">Students get the same stored version every time, with clean UI and consistent grading.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Main Browsing Section */}
       <main id="browse" className="max-w-7xl mx-auto px-6 py-24 space-y-16">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-10">
           <div className="space-y-4 text-center md:text-left">
-            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Level up your learning</h2>
-            <p className="text-lg text-slate-500 max-w-md">Find worksheets tailored to your grade and subject. Ready to start practicing?</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Browse Library</p>
+            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Practice with published worksheets</h2>
+            <p className="text-lg text-slate-500 max-w-md">Find reviewed worksheets by grade and subject, then jump straight into practice.</p>
           </div>
           <Suspense fallback={<div className="h-16 animate-pulse bg-slate-200 rounded-xl w-full max-w-md"></div>}>
             <FilterSection classes={CLASSES} subjects={SUBJECTS} />
@@ -184,7 +237,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
                  <Search className="w-12 h-12" />
                </div>
                <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Empty classroom!</h3>
-               <p className="text-slate-400 max-w-sm mx-auto font-medium text-lg mt-2">We couldn&apos;t find any worksheets matching your filters. Try selecting a different grade or subject.</p>
+               <p className="text-slate-400 max-w-sm mx-auto font-medium text-lg mt-2">We couldn't find any worksheets matching your filters. Try selecting a different grade or subject.</p>
                <Button variant="outline" asChild className="h-14 px-10 rounded-2xl border-slate-200 text-lg font-bold mt-8 hover:bg-slate-50">
                  <Link href="/">Clear All Filters</Link>
                </Button>
@@ -224,12 +277,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
            </div>
            <nav className="flex flex-wrap justify-center gap-8">
              <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
-             {auth.profile?.role === "admin" && (
-               <Link href="/admin" className="hover:text-blue-600 transition-colors">Admin</Link>
-             )}
-             <Link href="#browse" className="hover:text-blue-600 transition-colors">Browse</Link>
-             <Link href="#" className="hover:text-blue-600 transition-colors">Contact</Link>
+            {auth.profile?.role === "admin" && (
+              <Link href="/admin" className="hover:text-blue-600 transition-colors">Admin</Link>
+            )}
+            <Link href="#browse" className="hover:text-blue-600 transition-colors">Browse</Link>
            </nav>
+           <p className="text-sm font-black tracking-tight text-slate-900 normal-case">Created by Rayyan Shaik</p>
            <p>© 2026 PDF FINDER PROJECT</p>
         </div>
       </footer>

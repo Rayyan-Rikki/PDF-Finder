@@ -16,13 +16,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { getDraftDriftSummary, getRawDraftQuestionCount } from "@/lib/worksheets/drift";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     total: 0,
     published: 0,
     processing: 0,
-    drafts: 0
+    drafts: 0,
+    needsReview: 0
   });
   const [loading, setLoading] = useState(true);
   const [supabase] = useState(() => createClient());
@@ -30,13 +32,36 @@ export default function AdminDashboard() {
   useEffect(() => {
     let ignore = false;
     async function fetchStats() {
-      const { data: worksheets, error } = await supabase.from("worksheets").select("status");
+      const { data: worksheets, error } = await supabase
+        .from("worksheets")
+        .select("status, published_at, raw_processing(updated_at, ai_output_json)");
       if (!ignore && !error && worksheets) {
+        const needsReview = worksheets.filter((worksheet) => {
+          const rawProcessing = Array.isArray(worksheet.raw_processing)
+            ? worksheet.raw_processing[0]
+            : worksheet.raw_processing;
+          const draftDrift = getDraftDriftSummary({
+            generatedQuestionCount: getRawDraftQuestionCount(rawProcessing?.ai_output_json),
+            rawUpdatedAt: rawProcessing?.updated_at,
+            publishedAt: worksheet.published_at,
+          });
+
+          return (
+            worksheet.status === "draft_generated" ||
+            worksheet.status === "failed" ||
+            draftDrift.label === "Newer Draft Available" ||
+            draftDrift.label === "Draft Out Of Sync" ||
+            draftDrift.label === "Draft Never Published" ||
+            draftDrift.label === "Count Mismatch"
+          );
+        }).length;
+
         setStats({
           total: worksheets.length,
           published: worksheets.filter(w => w.status === 'published').length,
           processing: worksheets.filter(w => w.status === 'processing').length,
-          drafts: worksheets.filter(w => w.status === 'draft_generated').length
+          drafts: worksheets.filter(w => w.status === 'draft_generated').length,
+          needsReview
         });
         setLoading(false);
       }
@@ -65,7 +90,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="border-none shadow-sm rounded-[2rem] bg-white group hover:shadow-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Total Content</CardTitle>
@@ -105,18 +130,35 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm rounded-[2rem] bg-white group hover:shadow-xl transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Review Drafts</CardTitle>
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-               <FileText className="h-4 w-4" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-black text-indigo-600">{loading ? "..." : stats.drafts}</div>
-            <p className="text-[10px] text-slate-400 font-bold mt-1">Need your approval</p>
-          </CardContent>
-        </Card>
+        <Link href="/admin/worksheets?filter=draft_ready" className="block">
+          <Card className="border-none shadow-sm rounded-[2rem] bg-white group hover:shadow-xl transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Review Drafts</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                 <FileText className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-black text-indigo-600">{loading ? "..." : stats.drafts}</div>
+              <p className="text-[10px] text-slate-400 font-bold mt-1">Need your approval</p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/worksheets?filter=needs_review" className="block">
+          <Card className="border-none shadow-sm rounded-[2rem] bg-white group hover:shadow-xl transition-all duration-300">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">Needs Review</CardTitle>
+              <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
+                 <Sparkles className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-black text-rose-600">{loading ? "..." : stats.needsReview}</div>
+              <p className="text-[10px] text-slate-400 font-bold mt-1">Draft drift or failed processing</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">

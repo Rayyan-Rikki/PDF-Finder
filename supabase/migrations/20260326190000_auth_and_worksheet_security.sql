@@ -98,6 +98,10 @@ create table if not exists public.worksheets (
   topic text,
   storage_path text not null,
   status text not null default 'uploaded' check (status in ('uploaded', 'processing', 'draft_generated', 'reviewed', 'published', 'failed')),
+  processing_error text,
+  processing_attempts integer not null default 0,
+  last_processed_at timestamptz,
+  last_retry_at timestamptz,
   created_by uuid references public.profiles(id) on delete set null,
   created_at timestamptz not null default now(),
   published_at timestamptz
@@ -117,9 +121,19 @@ create table if not exists public.questions (
   worksheet_id uuid not null references public.worksheets(id) on delete cascade,
   question_text text not null,
   answer_text text not null,
+  answer_options text[] not null default '{}',
+  accepted_answer_variants text[] not null default '{}',
   question_type text not null default 'short' check (question_type in ('short', 'multiple_choice', 'true_false')),
+  grading_mode text not null default 'exact' check (grading_mode in ('exact', 'numeric_tolerance', 'keyword_match')),
+  numeric_tolerance numeric,
+  required_keywords text[] not null default '{}',
+  minimum_keyword_matches integer,
   explanation text,
   source_page integer,
+  source_order integer,
+  layout_hint text not null default 'unknown',
+  generation_basis text not null default 'generated_similar' check (generation_basis in ('extracted', 'generated_similar', 'manual')),
+  style_notes text,
   is_published boolean not null default false,
   created_at timestamptz not null default now()
 );
@@ -129,6 +143,10 @@ create index if not exists idx_questions_worksheet_id on public.questions(worksh
 alter table public.worksheets add column if not exists storage_path text;
 alter table public.worksheets add column if not exists created_by uuid references public.profiles(id) on delete set null;
 alter table public.worksheets add column if not exists published_at timestamptz;
+alter table public.worksheets add column if not exists processing_error text;
+alter table public.worksheets add column if not exists processing_attempts integer not null default 0;
+alter table public.worksheets add column if not exists last_processed_at timestamptz;
+alter table public.worksheets add column if not exists last_retry_at timestamptz;
 
 do $$
 begin
@@ -200,6 +218,124 @@ begin
     raise exception 'Each question requires question_text and answer_text.';
   end if;
 
+  if exists (
+    select 1
+    from jsonb_array_elements(p_questions) as item
+    where nullif(item ->> 'source_order', '') is not null
+      and not (
+        (item ->> 'source_order') ~ '^[0-9]+$'
+        and (item ->> 'source_order')::integer > 0
+      )
+  ) then
+    raise exception 'Source order must be a positive integer when provided.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(p_questions) as item
+    where coalesce(item ->> 'question_type', 'short') = 'multiple_choice'
+      and (
+        (
+          select count(*)
+          from jsonb_array_elements_text(
+            case
+              when jsonb_typeof(item -> 'answer_options') = 'array' then item -> 'answer_options'
+              else '[]'::jsonb
+            end
+          ) as value
+          where trim(value) <> ''
+        ) < 3
+        or not exists (
+          select 1
+          from jsonb_array_elements_text(
+            case
+              when jsonb_typeof(item -> 'answer_options') = 'array' then item -> 'answer_options'
+              else '[]'::jsonb
+            end
+          ) as value
+          where lower(trim(value)) = lower(trim(item ->> 'answer_text'))
+        )
+      )
+  ) then
+    raise exception 'Multiple-choice questions need at least 3 options and the answer must match one option.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(p_questions) as item
+    where coalesce(item ->> 'question_type', 'short') = 'true_false'
+      and (
+        lower(trim(item ->> 'answer_text')) not in ('true', 'false')
+        or not exists (
+          select 1
+          from jsonb_array_elements_text(
+            case
+              when jsonb_typeof(item -> 'answer_options') = 'array' then item -> 'answer_options'
+              else '[]'::jsonb
+            end
+          ) as value
+          where lower(trim(value)) = 'true'
+        )
+        or not exists (
+          select 1
+          from jsonb_array_elements_text(
+            case
+              when jsonb_typeof(item -> 'answer_options') = 'array' then item -> 'answer_options'
+              else '[]'::jsonb
+            end
+          ) as value
+          where lower(trim(value)) = 'false'
+        )
+      )
+  ) then
+    raise exception 'True/false questions must use answer_text True or False and include both True and False options.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(p_questions) as item
+    where coalesce(item ->> 'grading_mode', 'exact') = 'numeric_tolerance'
+      and (
+        coalesce(item ->> 'question_type', 'short') <> 'short'
+        or nullif(item ->> 'numeric_tolerance', '') is null
+        or not (
+          (item ->> 'numeric_tolerance') ~ '^-?[0-9]+(\.[0-9]+)?$'
+          and (item ->> 'answer_text') ~ '^-?[0-9]+(\.[0-9]+)?$'
+          and ((item ->> 'numeric_tolerance')::numeric >= 0)
+        )
+      )
+  ) then
+    raise exception 'Numeric tolerance grading requires a short-answer question with numeric answer_text and a non-negative numeric_tolerance.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_array_elements(p_questions) as item
+    where coalesce(item ->> 'grading_mode', 'exact') = 'keyword_match'
+      and (
+        coalesce(item ->> 'question_type', 'short') <> 'short'
+        or (
+          select count(*)
+          from jsonb_array_elements_text(
+            case
+              when jsonb_typeof(item -> 'required_keywords') = 'array' then item -> 'required_keywords'
+              else '[]'::jsonb
+            end
+          ) as value
+          where trim(value) <> ''
+        ) = 0
+        or (
+          nullif(item ->> 'minimum_keyword_matches', '') is not null
+          and not (
+            (item ->> 'minimum_keyword_matches') ~ '^[0-9]+$'
+            and (item ->> 'minimum_keyword_matches')::integer > 0
+          )
+        )
+      )
+  ) then
+    raise exception 'Keyword-match grading requires a short-answer question, at least one required keyword, and a positive minimum_keyword_matches when provided.';
+  end if;
+
   delete from public.questions
   where worksheet_id = p_worksheet_id;
 
@@ -207,23 +343,98 @@ begin
     worksheet_id,
     question_text,
     answer_text,
+    answer_options,
+    accepted_answer_variants,
     question_type,
+    grading_mode,
+    numeric_tolerance,
+    required_keywords,
+    minimum_keyword_matches,
     explanation,
     source_page,
-    is_published
+    source_order,
+    layout_hint,
+    is_published,
+    generation_basis,
+    style_notes
   )
   select
     p_worksheet_id,
     trim(item ->> 'question_text'),
     trim(item ->> 'answer_text'),
+    coalesce(
+      (
+        select array_agg(trim(value))
+        from jsonb_array_elements_text(
+          case
+            when jsonb_typeof(item -> 'answer_options') = 'array'
+              then item -> 'answer_options'
+            else '[]'::jsonb
+          end
+        ) as value
+        where trim(value) <> ''
+      ),
+      '{}'::text[]
+    ),
+    coalesce(
+      (
+        select array_agg(trim(value))
+        from jsonb_array_elements_text(
+          case
+            when jsonb_typeof(item -> 'accepted_answer_variants') = 'array'
+              then item -> 'accepted_answer_variants'
+            else '[]'::jsonb
+          end
+        ) as value
+        where trim(value) <> ''
+      ),
+      '{}'::text[]
+    ),
     case
       when coalesce(item ->> 'question_type', '') in ('short', 'multiple_choice', 'true_false')
         then item ->> 'question_type'
       else 'short'
     end,
+    case
+      when coalesce(item ->> 'grading_mode', '') in ('exact', 'numeric_tolerance', 'keyword_match')
+        then item ->> 'grading_mode'
+      else 'exact'
+    end,
+    nullif(item ->> 'numeric_tolerance', '')::numeric,
+    coalesce(
+      (
+        select array_agg(trim(value))
+        from jsonb_array_elements_text(
+          case
+            when jsonb_typeof(item -> 'required_keywords') = 'array'
+              then item -> 'required_keywords'
+            else '[]'::jsonb
+          end
+        ) as value
+        where trim(value) <> ''
+      ),
+      '{}'::text[]
+    ),
+    nullif(item ->> 'minimum_keyword_matches', '')::integer,
     nullif(trim(item ->> 'explanation'), ''),
     nullif(item ->> 'source_page', '')::integer,
-    true
+    nullif(item ->> 'source_order', '')::integer,
+    case
+      when coalesce(item ->> 'layout_hint', '') in ('mcq_vertical', 'mcq_inline', 'short_line', 'paragraph_answer', 'true_false_row', 'unknown')
+        then item ->> 'layout_hint'
+      when coalesce(item ->> 'question_type', 'short') = 'multiple_choice'
+        then 'mcq_vertical'
+      when coalesce(item ->> 'question_type', 'short') = 'true_false'
+        then 'true_false_row'
+      else 'short_line'
+    end,
+    true,
+    case
+      when coalesce(item ->> 'generation_basis', '') in ('extracted', 'generated_similar', 'manual')
+        then item ->> 'generation_basis'
+      else 'generated_similar'
+    end,
+    nullif(trim(item ->> 'style_notes'), '')
   from jsonb_array_elements(p_questions) as item;
 
   update public.worksheets

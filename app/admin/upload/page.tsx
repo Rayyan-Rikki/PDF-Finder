@@ -66,7 +66,7 @@ export default function UploadPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      if (!res.ok) throw new Error(data.details || data.error || "Upload failed");
 
       setStatus("success");
       setFile(null);
@@ -86,7 +86,7 @@ export default function UploadPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">Upload Worksheet</h2>
-        <p className="text-slate-500 mt-2">Upload a worksheet PDF and let AI extract questions for your interactive quiz.</p>
+        <p className="text-slate-500 mt-2">Upload a worksheet PDF and let AI generate a similar quiz with answers for students.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -184,7 +184,7 @@ export default function UploadPage() {
                 {status === "success" && (
                   <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 rounded-lg flex gap-3 items-center animate-in fade-in slide-in-from-top-2">
                     <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-                    <p className="text-sm font-medium">Success! Worksheet has been uploaded and AI is extracting Q&A.</p>
+                    <p className="text-sm font-medium">Success! Worksheet has been uploaded and AI is generating a similar quiz.</p>
                   </div>
                 )}
 
@@ -203,7 +203,7 @@ export default function UploadPage() {
                     </>
                   ) : (
                     <>
-                      Start AI Extraction
+                      Generate Similar Quiz
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </>
                   )}
@@ -238,7 +238,7 @@ export default function UploadPage() {
             <CardContent className="space-y-4">
               <div className="flex gap-4">
                 <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">1</div>
-                <p className="text-sm text-slate-600">AI extracts text and images from your PDF to identify Q&A pairs.</p>
+                <p className="text-sm text-slate-600">AI analyzes the worksheet style and generates similar questions with answers.</p>
               </div>
               <div className="flex gap-4">
                 <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">2</div>

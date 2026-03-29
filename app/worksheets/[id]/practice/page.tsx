@@ -1,16 +1,26 @@
 "use client";
 
 import { useEffect, useState, use, useCallback } from "react";
-import { CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Sparkles, RefreshCcw, Home, FileText, Check, X, Trophy } from "lucide-react";
+import { CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Sparkles, RefreshCcw, Home, Check, X, Trophy } from "lucide-react";
+import { evaluateAnswer, type AnswerEvaluation } from "@/lib/questions";
 import { createClient } from "@/lib/supabase/client";
 import { Worksheet, Question } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+function getQuestionOptions(question: Question) {
+  if (question.question_type === "true_false") {
+    return question.answer_options && question.answer_options.length > 0 ? question.answer_options : ["True", "False"];
+  }
+
+  return question.answer_options || [];
+}
 
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -25,6 +35,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [evaluation, setEvaluation] = useState<AnswerEvaluation | null>(null);
+  const [questionNotes, setQuestionNotes] = useState<Record<string, string>>({});
   
   const [supabase] = useState(() => createClient());
 
@@ -38,6 +50,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         .single();
       
       if (wsError) throw wsError;
+      if ((ws as Worksheet).status !== "published") {
+        throw new Error("This worksheet is not currently published for students.");
+      }
       setWorksheet(ws as Worksheet);
 
       const { data: qs, error: qsError } = await supabase
@@ -45,9 +60,13 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         .select("*")
         .eq("worksheet_id", id)
         .eq("is_published", true)
+        .order("source_order", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true });
       
       if (qsError) throw qsError;
+      if (!qs || qs.length === 0) {
+        throw new Error("This worksheet does not have any published questions.");
+      }
       setQuestions((qs as Question[]) || []);
     } catch (err: unknown) {
       console.error(err);
@@ -61,18 +80,22 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     fetchData();
   }, [fetchData]);
 
-  const checkAnswer = () => {
-    if (!userAnswer.trim()) return;
-
+  const checkAnswer = (answerOverride?: string) => {
+    const attemptedAnswer = answerOverride ?? userAnswer;
+    if (!attemptedAnswer.trim()) return;
     const currentQuestion = questions[currentIndex];
-    const cleanUser = userAnswer.toLowerCase().replace(/\s+/g, '').trim();
-    const cleanCorrect = currentQuestion.answer_text.toLowerCase().replace(/\s+/g, '').trim();
+    const result = evaluateAnswer(currentQuestion, attemptedAnswer);
 
-    if (cleanUser === cleanCorrect) {
+    if (result.isCorrect) {
       setFeedback("correct");
       setScore(score + 1);
     } else {
       setFeedback("incorrect");
+    }
+    setEvaluation(result);
+
+    if (answerOverride !== undefined) {
+      setUserAnswer(answerOverride);
     }
   };
 
@@ -81,6 +104,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
       setCurrentIndex(currentIndex + 1);
       setUserAnswer("");
       setFeedback("none");
+      setEvaluation(null);
     } else {
       setShowResult(true);
     }
@@ -92,6 +116,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
     setFeedback("none");
     setScore(0);
     setShowResult(false);
+    setEvaluation(null);
+    setQuestionNotes({});
   };
 
   if (loading) {
@@ -175,37 +201,41 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   }
 
   const currentQ = questions[currentIndex];
+  const currentQuestionKey = currentQ.id ?? `question-${currentIndex}`;
   const progress = ((currentIndex + 1) / questions.length) * 100;
+  const options = getQuestionOptions(currentQ);
+  const usesChoiceUi = currentQ.question_type !== "short" && options.length > 0;
+  const currentQuestionNote = questionNotes[currentQuestionKey] ?? "";
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="h-screen overflow-hidden bg-slate-50 flex flex-col">
       {/* Header */}
-      <nav className="bg-white border-b border-slate-100 h-20 flex items-center px-6 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-           <div className="flex items-center gap-6">
-              <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl hover:bg-slate-50 text-slate-400" asChild>
+      <nav className="bg-white border-b border-slate-100 h-16 flex items-center px-4 md:px-6 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
+           <div className="flex min-w-0 items-center gap-3 md:gap-4">
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-slate-50 text-slate-400" asChild>
                 <Link href="/">
-                  <ArrowLeft className="w-6 h-6" />
+                  <ArrowLeft className="w-5 h-5" />
                 </Link>
               </Button>
-              <div className="hidden md:block">
+              <div className="hidden min-w-0 md:block">
                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">{worksheet?.subject} • {worksheet?.class}</p>
-                <p className="text-slate-900 font-black text-lg truncate max-w-[300px] uppercase tracking-tighter">{worksheet?.title}</p>
+                <p className="text-slate-900 font-black text-base md:text-lg truncate max-w-[220px] md:max-w-[280px] uppercase tracking-tight">{worksheet?.title}</p>
               </div>
            </div>
            
-           <div className="flex-1 max-w-md mx-8">
-              <div className="flex justify-between mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+           <div className="flex-1 max-w-xs md:max-w-sm">
+              <div className="flex justify-between mb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
                  <span>Progress</span>
                  <span>{currentIndex + 1} of {questions.length}</span>
               </div>
-              <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 p-0.5">
+              <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 p-0.5">
                  <div className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.4)]" style={{ width: `${progress}%` }}></div>
               </div>
            </div>
 
            <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-50 text-emerald-600 border-none font-black hidden sm:flex">
+              <Badge className="bg-emerald-50 px-2.5 py-1 text-[10px] text-emerald-600 border-none font-black hidden sm:flex">
                 <CheckCircle2 className="w-3 h-3 mr-1.5" />
                 {score} Correct
               </Badge>
@@ -213,87 +243,185 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
         </div>
       </nav>
 
-      <main className="flex-1 flex items-center justify-center p-6 py-12">
-        <div className="max-w-4xl w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card className="border-none shadow-2xl rounded-[3.5rem] overflow-hidden bg-white">
-            <CardHeader className="p-12 pb-6">
-               <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest mb-4">
-                  Question {currentIndex + 1}
+      <main className="flex-1 min-h-0 flex items-center justify-center p-3 md:p-4">
+        <div className="max-w-5xl w-full h-full flex flex-col justify-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-white flex flex-col flex-1 min-h-0">
+            <CardHeader className="p-5 md:p-6 pb-3 md:pb-4">
+               <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                     Question {currentIndex + 1}
+                  </div>
+                  <div className="inline-flex items-center px-3 py-1 bg-slate-100 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                     Page {currentQ.source_page || "?"}
+                  </div>
                </div>
-               <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight uppercase tracking-tight">
+               <h2 className="text-xl md:text-[2rem] font-black text-slate-900 leading-snug uppercase tracking-tight">
                   {currentQ.question_text}
                </h2>
             </CardHeader>
-            <CardContent className="px-12 pb-12 space-y-10">
-               <div className="space-y-4">
-                  <Label htmlFor="answer" className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Your response</Label>
-                  <div className="relative group">
-                    <Input 
-                      id="answer"
-                      value={userAnswer}
-                      onChange={(e) => setUserAnswer(e.target.value)}
-                      disabled={feedback !== "none"}
-                      onKeyDown={(e) => e.key === "Enter" && feedback === "none" && checkAnswer()}
-                      placeholder="Type your answer here..."
-                      className={cn(
-                        "h-20 px-8 text-2xl font-bold rounded-3xl border-2 transition-all duration-300",
-                        feedback === "none" ? "border-slate-100 bg-slate-50 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 shadow-sm" :
-                        feedback === "correct" ? "border-emerald-200 bg-emerald-50/50 text-emerald-800" :
-                        "border-red-200 bg-red-50/50 text-red-800"
-                      )}
-                      autoComplete="off"
-                    />
-                    {feedback === "correct" && <Check className="absolute right-8 top-1/2 -translate-y-1/2 w-8 h-8 text-emerald-500 animate-in zoom-in duration-300" />}
-                    {feedback === "incorrect" && <X className="absolute right-8 top-1/2 -translate-y-1/2 w-8 h-8 text-red-500 animate-in zoom-in duration-300" />}
-                  </div>
+            <CardContent className="px-5 md:px-6 pb-5 md:pb-6 space-y-5 flex-1 min-h-0 overflow-y-auto">
+               <div className="space-y-2.5">
+                  <Label htmlFor="answer" className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 ml-1">Your response</Label>
+                  {!usesChoiceUi ? (
+                    <div className="relative group">
+                      <Input 
+                        id="answer"
+                        value={userAnswer}
+                        onChange={(e) => setUserAnswer(e.target.value)}
+                        disabled={feedback !== "none"}
+                        onKeyDown={(e) => e.key === "Enter" && feedback === "none" && checkAnswer()}
+                        placeholder="Type your answer here..."
+                        className={cn(
+                          "h-14 md:h-16 px-5 md:px-6 text-lg md:text-xl font-bold rounded-2xl border-2 transition-all duration-300",
+                          feedback === "none" ? "border-slate-100 bg-slate-50 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 shadow-sm" :
+                          feedback === "correct" ? "border-emerald-200 bg-emerald-50/50 text-emerald-800" :
+                          "border-red-200 bg-red-50/50 text-red-800"
+                        )}
+                        autoComplete="off"
+                      />
+                      {feedback === "correct" && <Check className="absolute right-5 top-1/2 -translate-y-1/2 w-6 h-6 text-emerald-500 animate-in zoom-in duration-300" />}
+                      {feedback === "incorrect" && <X className="absolute right-5 top-1/2 -translate-y-1/2 w-6 h-6 text-red-500 animate-in zoom-in duration-300" />}
+                    </div>
+                  ) : (
+                    <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_190px] md:items-start">
+                      <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+                        {options.map((option, optionIndex) => {
+                          const isSelected = userAnswer === option;
+                          const isCorrectOption = option.trim().toLowerCase() === currentQ.answer_text.trim().toLowerCase();
+                          const showCorrect = feedback !== "none" && isCorrectOption;
+                          const showIncorrect = feedback === "incorrect" && isSelected && !isCorrectOption;
+                          const optionLabel = String.fromCharCode(65 + optionIndex);
+
+                          return (
+                            <Button
+                              key={option}
+                              type="button"
+                              variant="outline"
+                              disabled={feedback !== "none"}
+                              onClick={() => setUserAnswer(option)}
+                              className={cn(
+                                "h-auto min-h-[34px] md:min-h-9 justify-start whitespace-normal rounded-lg border px-2 py-1.5 md:px-2.5 md:py-2 text-left text-[11px] md:text-[13px] leading-snug font-bold shadow-none",
+                                isSelected ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200/90 bg-white text-slate-700",
+                                feedback === "none" ? "hover:border-blue-300 hover:bg-blue-50/40 hover:-translate-y-[1px]" : "",
+                                showCorrect ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "",
+                                showIncorrect ? "border-red-300 bg-red-50 text-red-800" : ""
+                              )}
+                            >
+                              <div className="flex items-start gap-2 w-full">
+                                <span
+                                  className={cn(
+                                    "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-black",
+                                    isSelected ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500",
+                                    showCorrect ? "bg-emerald-600 text-white" : "",
+                                    showIncorrect ? "bg-red-600 text-white" : ""
+                                  )}
+                                >
+                                  {optionLabel}
+                                </span>
+                                <span className="pt-0.5 line-clamp-2">{option}</span>
+                              </div>
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-blue-50 p-2.5 shadow-sm space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="question-note" className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                            Quick note
+                          </Label>
+                          <span className="rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-blue-600">
+                            Scratchpad
+                          </span>
+                        </div>
+                        <Textarea
+                          id="question-note"
+                          value={currentQuestionNote}
+                          onChange={(e) =>
+                            setQuestionNotes((prev) => ({
+                              ...prev,
+                              [currentQuestionKey]: e.target.value,
+                            }))
+                          }
+                          placeholder="Write a short note..."
+                          className="min-h-[76px] resize-none rounded-xl border-slate-200/80 bg-white/95 px-2.5 py-2 text-[11px] md:text-xs shadow-none focus-visible:ring-2"
+                        />
+                      </div>
+                    </div>
+                  )}
                </div>
 
                {feedback !== "none" && (
                  <div className={cn(
-                   "p-8 rounded-[2.5rem] border-2 animate-in slide-in-from-top-4 duration-500 flex flex-col md:flex-row items-center md:items-start gap-6",
+                   "p-4 md:p-5 rounded-[1.75rem] border-2 animate-in slide-in-from-top-4 duration-500 flex flex-col md:flex-row items-center md:items-start gap-4",
                    feedback === "correct" ? "bg-emerald-600 text-white border-emerald-400 shadow-xl shadow-emerald-200" : "bg-red-600 text-white border-red-400 shadow-xl shadow-red-200"
                  )}>
-                   <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 animate-bounce">
-                     {feedback === "correct" ? <CheckCircle2 className="w-10 h-10" /> : <AlertCircle className="w-10 h-10" />}
+                   <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                     {feedback === "correct" ? <CheckCircle2 className="w-7 h-7" /> : <AlertCircle className="w-7 h-7" />}
                    </div>
-                   <div className="space-y-2 text-center md:text-left">
-                     <p className="text-2xl font-black uppercase tracking-tighter">
-                       {feedback === "correct" ? "Perfect! That&apos;s correct" : "Not quite right"}
+                   <div className="space-y-2.5 text-center md:text-left">
+                     <p className="text-lg md:text-xl font-black uppercase tracking-tight">
+                       {feedback === "correct" ? "Perfect! That's correct" : "Not quite right"}
                      </p>
-                     <div className="bg-black/10 p-4 rounded-2xl">
-                        <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-1">Correct Answer</p>
-                        <p className="text-lg font-bold">{currentQ.answer_text}</p>
+                     <div className="bg-black/10 p-3 rounded-xl">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-60 mb-1">Correct Answer</p>
+                        <p className="text-base md:text-lg font-bold">{currentQ.answer_text}</p>
                      </div>
+                     {currentQ.accepted_answer_variants && currentQ.accepted_answer_variants.length > 0 && (
+                        <div className="bg-black/10 p-3 rounded-xl">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-60 mb-1">Also Accepted</p>
+                          <p className="text-xs md:text-sm font-medium">{currentQ.accepted_answer_variants.join(", ")}</p>
+                        </div>
+                     )}
+                     {evaluation?.gradingMode === "numeric_tolerance" && evaluation.acceptedRange && (
+                        <div className="bg-black/10 p-3 rounded-xl">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-60 mb-1">Accepted Range</p>
+                          <p className="text-xs md:text-sm font-medium">
+                            {evaluation.acceptedRange.min} to {evaluation.acceptedRange.max}
+                          </p>
+                        </div>
+                     )}
+                     {evaluation?.gradingMode === "keyword_match" && (
+                        <div className="bg-black/10 p-3 rounded-xl space-y-1.5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-60">Keyword Check</p>
+                          {evaluation.matchedKeywords && evaluation.matchedKeywords.length > 0 && (
+                            <p className="text-xs md:text-sm font-medium">Matched: {evaluation.matchedKeywords.join(", ")}</p>
+                          )}
+                          {feedback === "incorrect" && evaluation.missingKeywords && evaluation.missingKeywords.length > 0 && (
+                            <p className="text-xs md:text-sm font-medium">
+                              Missing: {evaluation.missingKeywords.join(", ")}
+                            </p>
+                          )}
+                          {evaluation.minimumKeywordMatches && (
+                            <p className="text-[11px] opacity-80">
+                              Required matches: {evaluation.minimumKeywordMatches}
+                            </p>
+                          )}
+                        </div>
+                     )}
                      {currentQ.explanation && (
-                        <p className="text-sm font-medium opacity-90 leading-relaxed mt-4 italic">
-                           &quot; {currentQ.explanation} &quot;
+                        <p className="text-xs md:text-sm font-medium opacity-90 leading-relaxed italic">
+                           {currentQ.explanation}
                         </p>
                      )}
                    </div>
                  </div>
                )}
             </CardContent>
-            <CardFooter className="px-12 py-8 bg-slate-50 border-t border-slate-100">
+            <CardFooter className="px-5 md:px-6 py-4 bg-slate-50 border-t border-slate-100">
                {feedback === "none" ? (
-                 <Button className="w-full h-16 rounded-2xl bg-slate-900 hover:bg-slate-800 text-xl font-bold uppercase tracking-widest transition-all active:scale-95 group shadow-xl shadow-slate-200" onClick={checkAnswer}>
-                   Validate Answer
-                   <CheckCircle2 className="ml-3 h-6 w-6 group-hover:scale-110 transition-transform" />
+                 <Button className="w-full h-12 md:h-14 rounded-xl bg-slate-900 hover:bg-slate-800 text-base md:text-lg font-bold uppercase tracking-[0.12em] transition-all active:scale-95 group shadow-xl shadow-slate-200" onClick={() => checkAnswer()}>
+                   {usesChoiceUi ? "Check Selection" : "Validate Answer"}
+                   <CheckCircle2 className="ml-2.5 h-5 w-5 group-hover:scale-110 transition-transform" />
                  </Button>
                ) : (
-                 <Button className="w-full h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 text-xl font-bold uppercase tracking-widest transition-all active:scale-95 group shadow-xl shadow-blue-200" onClick={nextQuestion}>
+                 <Button className="w-full h-12 md:h-14 rounded-xl bg-blue-600 hover:bg-blue-700 text-base md:text-lg font-bold uppercase tracking-[0.12em] transition-all active:scale-95 group shadow-xl shadow-blue-200" onClick={nextQuestion}>
                    {currentIndex < questions.length - 1 ? "Next Challenge" : "Finish Practice"}
-                   <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
+                   <ArrowRight className="ml-2.5 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                  </Button>
                )}
             </CardFooter>
           </Card>
-          
-          <div className="flex justify-center">
-             <div className="bg-white/50 backdrop-blur-sm px-6 py-3 rounded-full border border-slate-200 flex items-center gap-4 text-slate-400">
-                <FileText className="w-4 h-4" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Question source: Page {currentQ.source_page || 'Unknown'}</span>
-             </div>
-          </div>
         </div>
       </main>
     </div>

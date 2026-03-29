@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { extractQuizFromPDF } from "@/lib/ai/gemini";
 import { ensureBucketExists } from "@/lib/supabase/storage";
+import { processWorksheetPDF } from "@/lib/worksheets/process";
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -78,6 +80,8 @@ export async function POST(req: NextRequest) {
         topic,
         storage_path: filePath,
         status: "processing",
+        processing_error: null,
+        processing_attempts: 1,
         created_by: user.id,
       })
       .select("id")
@@ -92,20 +96,10 @@ export async function POST(req: NextRequest) {
     // 3. Process with Gemini
     try {
       const base64 = fileBuffer.toString("base64");
-      
-      const extractionResult = await extractQuizFromPDF(base64);
-
-      // 4. Store Raw Processing & Update status
-      const { error: rawError } = await supabase.from("raw_processing").upsert({
-        worksheet_id: worksheet.id,
-        ai_output_json: extractionResult,
-      }, {
-        onConflict: "worksheet_id",
+      await processWorksheetPDF({
+        worksheetId: worksheet.id,
+        pdfBase64: base64,
       });
-
-      if (rawError) console.error("Raw Processing Insert Error:", rawError);
-
-      await supabase.from("worksheets").update({ status: "draft_generated" }).eq("id", worksheet.id);
 
       return NextResponse.json({ 
         success: true, 
@@ -114,12 +108,17 @@ export async function POST(req: NextRequest) {
       });
 
     } catch (processError: unknown) {
-      console.error("Extraction Processing Error:", processError);
-      await supabase.from("worksheets").update({ status: "failed" }).eq("id", worksheet.id);
-      return NextResponse.json({ 
-        error: "Worksheet uploaded but extraction failed.", 
+      const details = processError instanceof Error ? processError.message : "AI quiz generation failed.";
+      console.error("Extraction Processing Error:", {
+        details,
+        fileName: file.name,
+        fileSizeBytes: file.size,
         worksheetId: worksheet.id,
-        details: processError instanceof Error ? processError.message : "AI extraction failed."
+      });
+      return NextResponse.json({ 
+        error: details,
+        worksheetId: worksheet.id,
+        details
       }, { status: 500 });
     }
 
