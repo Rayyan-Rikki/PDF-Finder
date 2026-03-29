@@ -592,7 +592,7 @@ begin
 end;
 $$;
 
-select public.seed_auth_user('admin@pdffinder.local', 'rayyan123', 'admin', 'Admin User');
+select public.seed_auth_user('admin@pdffinder.local', 'rayyan2013', 'admin', 'Admin User');
 select public.seed_auth_user('user@example.com', 'rayyan123', 'user', 'Demo User');
 
 drop function public.seed_auth_user(text, text, text, text);

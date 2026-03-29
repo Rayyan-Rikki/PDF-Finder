@@ -49,12 +49,12 @@ npm run dev
 ### Admin login
 
 - Admin ID: `admin`
-- Password: `rayyan123`
+- Password: `rayyan2013`
 
 Internally this maps to the seeded Supabase account:
 
 - Email: `admin@pdffinder.local`
-- Password: `rayyan123`
+- Password: `rayyan2013`
 
 ### Demo user
 

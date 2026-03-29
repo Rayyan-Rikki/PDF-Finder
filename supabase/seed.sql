@@ -1,6 +1,6 @@
 -- Optional seed file.
 -- The canonical migration already creates:
---   admin@pdffinder.local / rayyan123
+--   admin@pdffinder.local / rayyan2013
 --   user@example.com / rayyan123
 --
 -- Add sample worksheets here only after the canonical migration has been applied.
