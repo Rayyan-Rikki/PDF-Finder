@@ -150,4 +150,46 @@ describe("parseExtractionResult", () => {
       `)
     ).toThrow("Gemini did not return any usable questions.");
   });
+
+  it("merges split worksheet subparts back into a single grouped question", () => {
+    const result = parseExtractionResult(`
+      {
+        "questions": [
+          {
+            "question_text": "Simplify",
+            "answer_text": "(i) -8389\\n(ii) -35",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 6,
+            "generation_basis": "extracted"
+          },
+          {
+            "question_text": "(i) 900 - 9289",
+            "answer_text": "-8389",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 7,
+            "generation_basis": "extracted"
+          },
+          {
+            "question_text": "(ii) 882 - 917",
+            "answer_text": "-35",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 8,
+            "generation_basis": "extracted"
+          }
+        ]
+      }
+    `);
+
+    expect(result.questions).toHaveLength(1);
+    expect(result.questions[0]).toMatchObject({
+      question_text: "Simplify\n(i) 900 - 9289\n(ii) 882 - 917",
+      answer_text: "(i) -8389\n(ii) -35",
+      question_type: "short",
+      source_order: 1,
+      layout_hint: "paragraph_answer",
+    });
+  });
 });

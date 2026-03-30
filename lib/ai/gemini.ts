@@ -178,8 +178,10 @@ function normalizeQuestion(input: unknown): ExtractedQuestion | null {
   }
 
   const question = input as Record<string, unknown>;
-  const questionText = typeof question.question_text === "string" ? question.question_text.trim() : "";
-  const answerText = typeof question.answer_text === "string" ? question.answer_text.trim() : "";
+  const questionText =
+    typeof question.question_text === "string" ? question.question_text.replace(/\r\n/g, "\n").trim() : "";
+  const answerText =
+    typeof question.answer_text === "string" ? question.answer_text.replace(/\r\n/g, "\n").trim() : "";
 
   if (!questionText || !answerText) {
     return null;
@@ -243,6 +245,95 @@ function normalizeQuestion(input: unknown): ExtractedQuestion | null {
   };
 }
 
+function isLikelySubpartQuestion(text: string) {
+  return /^\s*\((?:[ivxlcdm]+|[a-z]|\d+)\)\s+/i.test(text);
+}
+
+function hasSubpartMarkers(text: string) {
+  return /\((?:[ivxlcdm]+|[a-z]|\d+)\)\s+/i.test(text);
+}
+
+function mergeMultilineText(...values: Array<string | undefined>) {
+  const lines = values
+    .flatMap((value) => (value ? value.split("\n") : []))
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set(lines)).join("\n");
+}
+
+function canMergeIntoPreviousQuestion(previous: ExtractedQuestion, current: ExtractedQuestion) {
+  if (current.generation_basis && current.generation_basis !== "extracted") {
+    return false;
+  }
+
+  if (previous.generation_basis && previous.generation_basis !== "extracted") {
+    return false;
+  }
+
+  if (!isLikelySubpartQuestion(current.question_text)) {
+    return false;
+  }
+
+  if (previous.source_page && current.source_page && previous.source_page !== current.source_page) {
+    return false;
+  }
+
+  if (
+    previous.source_order &&
+    current.source_order &&
+    current.source_order - previous.source_order > 1
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function mergeBrokenCompoundQuestions(questions: ExtractedQuestion[]) {
+  const merged: ExtractedQuestion[] = [];
+
+  for (const question of questions) {
+    const previous = merged[merged.length - 1];
+
+    if (!previous || !canMergeIntoPreviousQuestion(previous, question)) {
+      merged.push(question);
+      continue;
+    }
+
+    previous.question_text = mergeMultilineText(previous.question_text, question.question_text);
+    previous.answer_text =
+      hasSubpartMarkers(previous.answer_text) && !hasSubpartMarkers(question.answer_text)
+        ? previous.answer_text
+        : mergeMultilineText(previous.answer_text, question.answer_text);
+
+    if (question.explanation) {
+      previous.explanation = mergeMultilineText(previous.explanation, question.explanation);
+    }
+
+    if (question.style_notes) {
+      previous.style_notes = previous.style_notes
+        ? `${previous.style_notes} ${question.style_notes}`.trim()
+        : question.style_notes;
+    }
+
+    const combinedVariants = [
+      ...(previous.accepted_answer_variants || []),
+      ...(question.accepted_answer_variants || []),
+    ];
+    previous.accepted_answer_variants = combinedVariants.length > 0 ? Array.from(new Set(combinedVariants)) : undefined;
+
+    if ((!previous.layout_hint || previous.layout_hint === "short_line") && hasSubpartMarkers(previous.question_text)) {
+      previous.layout_hint = "paragraph_answer";
+    }
+  }
+
+  return merged.map((question, index) => ({
+    ...question,
+    source_order: index + 1,
+  }));
+}
+
 export function parseExtractionResult(rawText: string): ExtractionResult {
   const jsonPayload = extractJsonPayload(rawText);
 
@@ -268,9 +359,11 @@ export function parseExtractionResult(rawText: string): ExtractionResult {
     questions: unknown[];
   };
 
-  const questions = extraction.questions
+  const questions = mergeBrokenCompoundQuestions(
+    extraction.questions
     .map(normalizeQuestion)
-    .filter((question): question is ExtractedQuestion => question !== null);
+    .filter((question): question is ExtractedQuestion => question !== null)
+  );
 
   if (questions.length === 0) {
     throw new Error("Gemini did not return any usable questions.");
@@ -349,6 +442,8 @@ export async function extractQuizFromPDF(pdfBase64: string): Promise<ExtractionR
     Requirements:
     - Preserve question order exactly and set source_order sequentially.
     - Preserve question type exactly when readable: if the worksheet shows MCQ, keep MCQ; if it shows short answer, keep short answer; if it shows true/false, keep true/false.
+    - If one worksheet question contains subparts such as (i), (ii), (iii), (a), (b), or numbered mini-parts, keep them inside a single question_text entry with line breaks. Do not split one numbered worksheet question into multiple separate questions.
+    - For grouped subpart questions, answer_text should also stay grouped in the same order as the subparts instead of producing separate question entries.
     - Keep questions aligned to the source worksheet's content. Do not invent unrelated topics.
     - Keep answers factual and concise.
     - Include accepted_answer_variants whenever more than one student phrasing should be accepted.
