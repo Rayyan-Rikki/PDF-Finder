@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 function getQuestionOptions(question: Question) {
   if (question.question_type === "true_false") {
@@ -122,26 +123,26 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 gap-6">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-white gap-6">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
           <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-blue-400 w-6 h-6" />
         </div>
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Generating your practice session...</p>
+        <p className="text-slate-500 dark:text-slate-300 font-bold uppercase tracking-widest text-xs">Generating your practice session...</p>
       </div>
     );
   }
 
   if (error || questions.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full border-none shadow-2xl rounded-[2.5rem] overflow-hidden">
-          <CardHeader className="bg-red-50 text-center py-12">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full border-none shadow-2xl dark:shadow-none rounded-[2.5rem] overflow-hidden dark:bg-white/5 dark:border dark:border-white/10">
+          <CardHeader className="bg-red-50 dark:bg-red-500/10 text-center py-12">
             <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <CardTitle className="text-2xl font-black text-red-900 uppercase tracking-tighter">Quiz Unavailable</CardTitle>
+            <CardTitle className="text-2xl font-black text-red-900 dark:text-red-200 uppercase tracking-tighter">Quiz Unavailable</CardTitle>
           </CardHeader>
           <CardContent className="p-10 text-center space-y-6">
-            <p className="text-slate-500 font-medium">
+            <p className="text-slate-500 dark:text-slate-300 font-medium">
               {error || "This worksheet doesn't have any published questions yet. Contact the administrator."}
             </p>
             <Button size="lg" className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 text-lg font-bold" asChild>
@@ -156,8 +157,8 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   if (showResult) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 animate-in fade-in zoom-in duration-500">
-        <Card className="max-w-2xl w-full border-none shadow-2xl rounded-[3rem] overflow-hidden">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6 animate-in fade-in zoom-in duration-500">
+        <Card className="max-w-2xl w-full border-none shadow-2xl dark:shadow-none rounded-[3rem] overflow-hidden dark:bg-white/5 dark:border dark:border-white/10">
           <div className="bg-blue-600 py-20 text-center text-white relative overflow-hidden">
             <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
             <Trophy className="w-24 h-24 mx-auto mb-6 drop-shadow-lg" />
@@ -168,18 +169,18 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
           <CardContent className="p-12 space-y-12">
             <div className="flex justify-center gap-12">
                <div className="text-center space-y-1">
-                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Score</p>
-                 <p className="text-4xl font-black text-slate-900">{score} / {questions.length}</p>
+                 <p className="text-slate-400 dark:text-slate-500 text-xs font-black uppercase tracking-widest">Score</p>
+                 <p className="text-4xl font-black text-slate-900 dark:text-white">{score} / {questions.length}</p>
                </div>
-               <div className="w-px bg-slate-100"></div>
+               <div className="w-px bg-slate-100 dark:bg-white/10"></div>
                <div className="text-center space-y-1">
-                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Accuracy</p>
+                 <p className="text-slate-400 dark:text-slate-500 text-xs font-black uppercase tracking-widest">Accuracy</p>
                  <p className="text-4xl font-black text-blue-600">{percentage}%</p>
                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Button size="lg" variant="outline" className="h-16 rounded-2xl border-slate-200 text-xl font-bold bg-white" onClick={restartQuiz}>
+              <Button size="lg" variant="outline" className="h-16 rounded-2xl border-slate-200 text-xl font-bold bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-100" onClick={restartQuiz}>
                 <RefreshCcw className="mr-2 h-6 w-6" />
                 Retry
               </Button>
@@ -192,7 +193,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
             </div>
             
             <div className="pt-6 border-t text-center">
-               <p className="text-slate-400 text-sm font-medium">Challenge yourself again to master the topic of <span className="text-slate-900 font-black">{worksheet?.subject}</span>.</p>
+               <p className="text-slate-400 dark:text-slate-300 text-sm font-medium">Challenge yourself again to master the topic of <span className="text-slate-900 dark:text-white font-black">{worksheet?.subject}</span>.</p>
             </div>
           </CardContent>
         </Card>
@@ -208,12 +209,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const currentQuestionNote = questionNotes[currentQuestionKey] ?? "";
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-50 flex flex-col">
+    <div className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-white flex flex-col">
       {/* Header */}
-      <nav className="bg-white border-b border-slate-100 h-16 flex items-center px-4 md:px-6 sticky top-0 z-50">
+      <nav className="bg-white/95 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-100 dark:border-white/10 h-16 flex items-center px-4 md:px-6 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
            <div className="flex min-w-0 items-center gap-3 md:gap-4">
-              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-slate-50 text-slate-400" asChild>
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-slate-50 dark:hover:bg-white/10 text-slate-400 dark:text-slate-200" asChild>
                 <Link href="/">
                   <ArrowLeft className="w-5 h-5" />
                 </Link>
@@ -225,17 +226,18 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
            </div>
            
            <div className="flex-1 max-w-xs md:max-w-sm">
-              <div className="flex justify-between mb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400">
+              <div className="flex justify-between mb-1.5 text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
                  <span>Progress</span>
                  <span>{currentIndex + 1} of {questions.length}</span>
               </div>
-              <div className="h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50 p-0.5">
+              <div className="h-2 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden border border-slate-200/50 dark:border-white/10 p-0.5">
                  <div className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(37,99,235,0.4)]" style={{ width: `${progress}%` }}></div>
               </div>
            </div>
 
            <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-50 px-2.5 py-1 text-[10px] text-emerald-600 border-none font-black hidden sm:flex">
+              <ThemeToggle className="hidden sm:inline-flex" />
+              <Badge className="bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 text-[10px] text-emerald-600 dark:text-emerald-200 border-none font-black hidden sm:flex">
                 <CheckCircle2 className="w-3 h-3 mr-1.5" />
                 {score} Correct
               </Badge>
@@ -245,17 +247,17 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
       <main className="flex-1 min-h-0 flex items-center justify-center p-3 md:p-4">
         <div className="max-w-5xl w-full h-full flex flex-col justify-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card className="border-none shadow-xl rounded-[2rem] overflow-hidden bg-white flex flex-col flex-1 min-h-0">
+          <Card className="border-none shadow-xl dark:shadow-none rounded-[2rem] overflow-hidden bg-white dark:bg-white/5 dark:border dark:border-white/10 flex flex-col flex-1 min-h-0">
             <CardHeader className="p-5 md:p-6 pb-3 md:pb-4">
                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                  <div className="inline-flex items-center px-3 py-1 bg-blue-50 dark:bg-cyan-400/10 text-blue-600 dark:text-cyan-200 rounded-xl text-[10px] font-black uppercase tracking-widest">
                      Question {currentIndex + 1}
                   </div>
-                  <div className="inline-flex items-center px-3 py-1 bg-slate-100 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                  <div className="inline-flex items-center px-3 py-1 bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest">
                      Page {currentQ.source_page || "?"}
                   </div>
                </div>
-               <h2 className="text-xl md:text-3xl font-bold text-slate-800 leading-tight mb-2">
+               <h2 className="text-xl md:text-3xl font-bold text-slate-800 dark:text-white leading-tight mb-2">
                   {currentQ.question_text}
                </h2>
             </CardHeader>

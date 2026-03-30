@@ -32,10 +32,10 @@ export default function FilterSection({ classes, subjects }: FilterSectionProps)
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+    <div className="flex flex-wrap items-center gap-4 rounded-[1.75rem] border border-slate-200/80 bg-white/80 p-4 shadow-lg shadow-slate-200/40 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
       <div className="flex-1 min-w-[200px]">
         <Select value={selectedClass} onValueChange={(val) => updateFilter("class", val)}>
-          <SelectTrigger className="w-full bg-slate-50 border-slate-200">
+          <SelectTrigger className="w-full border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950/60 dark:text-slate-100">
             <SelectValue placeholder="All Grades" />
           </SelectTrigger>
           <SelectContent>
@@ -49,7 +49,7 @@ export default function FilterSection({ classes, subjects }: FilterSectionProps)
 
       <div className="flex-1 min-w-[200px]">
         <Select value={selectedSubject} onValueChange={(val) => updateFilter("subject", val)}>
-          <SelectTrigger className="w-full bg-slate-50 border-slate-200">
+          <SelectTrigger className="w-full border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950/60 dark:text-slate-100">
             <SelectValue placeholder="All Subjects" />
           </SelectTrigger>
           <SelectContent>
@@ -62,7 +62,7 @@ export default function FilterSection({ classes, subjects }: FilterSectionProps)
       </div>
 
       {(selectedClass !== "all" || selectedSubject !== "all") && (
-        <Button variant="ghost" onClick={clearFilters} className="text-slate-500 hover:text-red-600">
+        <Button variant="ghost" onClick={clearFilters} className="text-slate-500 hover:text-red-600 dark:text-slate-300 dark:hover:text-red-400">
           <X className="mr-2 h-4 w-4" />
           Clear
         </Button>

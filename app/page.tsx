@@ -1,13 +1,25 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { requirePageAuth } from "@/lib/auth";
-import { Search, ArrowRight, Download, Play, FileText, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpenCheck,
+  Download,
+  FileText,
+  Layers3,
+  Play,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Workflow,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import FilterSection from "@/components/dashboard/FilterSection";
 import LogoutButton from "@/components/auth/LogoutButton";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 const CLASSES = ["LKG", "UKG", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12"];
 const SUBJECTS = ["Mathematics", "Science", "English", "Social Studies", "Hindi", "Environmental Studies", "Physics", "Chemistry", "Biology", "Computer Science", "History", "Geography", "Civics"];
@@ -19,7 +31,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
   const selectedSubject = query.subject || "";
 
   const supabase = await createClient();
-  
+
   let dbQuery = supabase
     .from("worksheets")
     .select("*")
@@ -31,105 +43,150 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
 
   const { data: worksheets } = await dbQuery;
 
+  const worksheetCount = worksheets?.length ?? 0;
+  const subjectCount = new Set((worksheets || []).map((worksheet) => worksheet.subject)).size;
+  const gradeCount = new Set((worksheets || []).map((worksheet) => worksheet.class)).size;
+
   return (
-    <div className="min-h-screen bg-slate-50 selection:bg-blue-100 selection:text-blue-900 font-sans">
-      {/* Hero Section */}
-      <header className="bg-white border-b border-slate-200 relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 bg-emerald-600/5 rounded-full blur-3xl"></div>
-        
-        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 relative z-10">
-          <div className="flex flex-col md:flex-row items-center gap-16">
-            <div className="flex-1 space-y-8 text-center md:text-left">
-              <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
-                <Badge className="rounded-full bg-slate-900 px-4 py-2 text-xs font-bold uppercase tracking-widest text-white">
-                  {auth.profile?.role === "admin" ? "Admin Access" : "Signed In"}
-                </Badge>
-                <span className="text-sm font-medium text-slate-500">
-                  {auth.profile?.display_name || auth.user.email}
-                </span>
-                <LogoutButton variant="ghost" className="rounded-full text-slate-600" />
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_24%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.14),_transparent_20%)] text-slate-950 transition-colors duration-300 dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_22%),radial-gradient(circle_at_bottom_right,_rgba(34,197,94,0.14),_transparent_18%)] dark:text-slate-50">
+      <header className="relative overflow-hidden border-b border-slate-200/70 dark:border-white/10">
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.8),rgba(255,255,255,0.35))] dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.9),rgba(15,23,42,0.62))]" />
+        <div className="relative mx-auto max-w-7xl px-6 pt-6 pb-18 md:pb-24">
+          <nav className="mb-12 flex flex-col gap-4 rounded-[2rem] border border-slate-200/80 bg-white/70 px-5 py-4 shadow-lg shadow-slate-200/40 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-lg font-black text-white shadow-lg shadow-slate-300/40 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-500/20">
+                P
               </div>
-              <div className="inline-flex items-center px-4 py-2 bg-blue-50 text-blue-700 rounded-full animate-in fade-in slide-in-from-bottom-2 duration-700">
-                <Sparkles className="w-5 h-5 mr-2" />
-                <span className="text-sm font-bold uppercase tracking-wider">AI-Powered Question Engine</span>
-              </div>
-              <div className="space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-75">
-                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Created By</p>
-                <p className="text-2xl md:text-3xl font-black tracking-tight text-slate-900">Rayyan Shaik</p>
-              </div>
-              <h1 className="text-6xl md:text-7xl font-black tracking-tighter text-slate-900 leading-[1.05] animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
-                Master your skills with <span className="text-blue-600">PDF Finder</span>
-              </h1>
-              <p className="text-xl text-slate-500 max-w-lg leading-relaxed mx-auto md:mx-0 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200">
-                Turn worksheet PDFs into structured practice sessions with consistent question types, instant feedback, and review-backed publishing.
-              </p>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-4 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-300">
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 h-16 px-10 rounded-2xl shadow-xl shadow-blue-200 text-xl font-bold group transition-all hover:scale-105 active:scale-95" asChild>
-                  <Link href="#browse">
-                    Browse Worksheets
-                    <ArrowRight className="ml-2 h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </Button>
-                {auth.profile?.role === "admin" && (
-                  <Button size="lg" variant="outline" className="h-16 px-10 rounded-2xl border-slate-200 text-xl font-bold hover:bg-slate-50 transition-all hover:scale-105 active:scale-95" asChild>
-                    <Link href="/admin">Admin Portal</Link>
-                  </Button>
-                )}
-              </div>
-              <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-400">
-                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Question Types</p>
-                  <p className="text-sm font-semibold text-slate-700">MCQ, short answer, and true/false</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Publishing Model</p>
-                  <p className="text-sm font-semibold text-slate-700">Parsed once, shared consistently</p>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Student Experience</p>
-                  <p className="text-sm font-semibold text-slate-700">Immediate feedback and clean practice flow</p>
+              <div className="space-y-1">
+                <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">Created by</p>
+                <div>
+                  <p className="text-xl font-black tracking-tight text-slate-950 dark:text-white">Rayyan Shaik</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">PDF Finder student practice platform</p>
                 </div>
               </div>
             </div>
-            
-            <div className="flex-1 w-full max-w-xl animate-in fade-in slide-in-from-right-8 duration-1000 delay-500">
-              <div className="relative aspect-square">
-                {/* Decorative Elements */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-blue-600/10 rounded-full scale-110 blur-2xl animate-pulse"></div>
-                
-                {/* Main Card */}
-                <div className="absolute inset-x-8 inset-y-8 bg-white border border-slate-100 rounded-[3rem] shadow-2xl flex flex-col p-10 transform -rotate-2 hover:rotate-0 transition-all duration-700 group cursor-default overflow-hidden">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className="flex gap-2">
-                       <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                       <div className="w-3 h-3 bg-amber-400 rounded-full"></div>
-                       <div className="w-3 h-3 bg-emerald-400 rounded-full"></div>
-                    </div>
-                    <Badge className="bg-blue-50 text-blue-600 border-none font-bold">LIVE PREVIEW</Badge>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge className="rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                {auth.profile?.role === "admin" ? "Admin Access" : "Student View"}
+              </Badge>
+              <ThemeToggle />
+              {auth.profile?.role === "admin" && (
+                <Button
+                  variant="outline"
+                  className="rounded-2xl border-slate-200 bg-white/70 px-5 font-bold dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10"
+                  asChild
+                >
+                  <Link href="/admin">Admin Portal</Link>
+                </Button>
+              )}
+              <LogoutButton
+                variant="ghost"
+                className="rounded-2xl border border-transparent px-5 font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+              />
+            </div>
+          </nav>
+
+          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/90 px-4 py-2 text-[11px] font-black uppercase tracking-[0.24em] text-blue-700 shadow-sm dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-200">
+                <Sparkles className="h-4 w-4" />
+                Review-backed worksheet intelligence
+              </div>
+
+              <div className="space-y-5">
+                <h1 className="max-w-4xl text-5xl font-black uppercase tracking-[-0.05em] text-slate-950 dark:text-white md:text-7xl">
+                  Practice worksheets in a cleaner, smarter interface.
+                </h1>
+                <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300 md:text-xl">
+                  PDFs are parsed once, reviewed by admin, and delivered as a stable student experience with matching question types, faster practice flow, and consistent feedback.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  size="lg"
+                  className="h-15 rounded-2xl bg-slate-950 px-8 text-lg font-black tracking-tight text-white shadow-xl shadow-slate-300/40 hover:bg-slate-800 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-500/20 dark:hover:bg-cyan-200"
+                  asChild
+                >
+                  <Link href="#library">
+                    Browse worksheets
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-15 rounded-2xl border-slate-200 bg-white/75 px-8 text-lg font-bold text-slate-700 shadow-sm hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10"
+                  asChild
+                >
+                  <Link href="#workflow">See workflow</Link>
+                </Button>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-[1.75rem] border border-slate-200/80 bg-white/75 p-5 shadow-lg shadow-slate-200/40 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">Published</p>
+                  <p className="mt-3 text-3xl font-black tracking-tight">{worksheetCount}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Ready for students now</p>
+                </div>
+                <div className="rounded-[1.75rem] border border-slate-200/80 bg-white/75 p-5 shadow-lg shadow-slate-200/40 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">Subjects</p>
+                  <p className="mt-3 text-3xl font-black tracking-tight">{subjectCount}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Active in this view</p>
+                </div>
+                <div className="rounded-[1.75rem] border border-slate-200/80 bg-white/75 p-5 shadow-lg shadow-slate-200/40 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+                  <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">Grades</p>
+                  <p className="mt-3 text-3xl font-black tracking-tight">{gradeCount}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Covered in results</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 rounded-[2.75rem] bg-gradient-to-br from-blue-500/15 via-transparent to-emerald-500/15 blur-2xl dark:from-cyan-400/20 dark:to-lime-400/10" />
+              <div className="relative overflow-hidden rounded-[2.75rem] border border-slate-200/80 bg-white/78 p-6 shadow-2xl shadow-slate-300/30 backdrop-blur-sm dark:border-white/10 dark:bg-slate-950/40 dark:shadow-none">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-full bg-rose-400" />
+                    <span className="h-3 w-3 rounded-full bg-amber-400" />
+                    <span className="h-3 w-3 rounded-full bg-emerald-400" />
                   </div>
-                  
-                  <div className="space-y-6 flex-1">
-                    <div className="h-6 bg-slate-100 rounded-lg w-1/2 animate-pulse"></div>
-                    <div className="space-y-4">
-                      <div className="h-4 bg-slate-50 rounded-lg w-full"></div>
-                      <div className="h-4 bg-slate-50 rounded-lg w-5/6"></div>
-                      <div className="h-4 bg-slate-50 rounded-lg w-3/4"></div>
-                    </div>
-                    
-                    <div className="pt-10 flex flex-col items-center justify-center gap-6">
-                      <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-2xl shadow-blue-200 group-hover:scale-110 transition-transform duration-500">
-                        <Play className="w-10 h-10 ml-1.5" />
+                  <Badge className="rounded-full bg-slate-950 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-white dark:bg-cyan-300 dark:text-slate-950">
+                    Live platform
+                  </Badge>
+                </div>
+
+                <div className="mt-8 space-y-5">
+                  <div className="rounded-[2rem] border border-slate-200/70 bg-slate-50/80 p-5 dark:border-white/10 dark:bg-white/5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-blue-600 dark:text-cyan-300">Session design</p>
+                        <h2 className="mt-3 text-2xl font-black tracking-tight text-slate-950 dark:text-white">One worksheet. One reviewed version. Same view for every learner.</h2>
                       </div>
-                      <div className="text-center">
-                        <p className="font-black text-2xl text-slate-800">Worksheet to Quiz</p>
-                        <p className="text-slate-400 font-medium">Structured, consistent, and review-ready</p>
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-cyan-300 dark:text-slate-950">
+                        <Play className="h-7 w-7 fill-current" />
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Overlay Effect */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-transparent to-blue-600/5 group-hover:to-blue-600/10 transition-colors"></div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-[1.5rem] border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+                      <Layers3 className="h-5 w-5 text-blue-600 dark:text-cyan-300" />
+                      <p className="mt-4 text-sm font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Question type</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">MCQ, true/false, and short answer stay aligned with the worksheet.</p>
+                    </div>
+                    <div className="rounded-[1.5rem] border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+                      <Workflow className="h-5 w-5 text-blue-600 dark:text-cyan-300" />
+                      <p className="mt-4 text-sm font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Parsing model</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">The worksheet is parsed once during upload instead of per student.</p>
+                    </div>
+                    <div className="rounded-[1.5rem] border border-slate-200/70 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+                      <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-cyan-300" />
+                      <p className="mt-4 text-sm font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Human review</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">Admins approve the final version before students ever see it.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -137,94 +194,144 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
         </div>
       </header>
 
-      <section className="border-b border-slate-200 bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-10">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+      <section id="workflow" className="border-b border-slate-200/70 py-18 dark:border-white/10">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="space-y-3">
-              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-blue-300">Workflow</p>
-              <h2 className="text-3xl md:text-4xl font-black tracking-tight">Upload once. Review once. Deliver the same experience to every student.</h2>
-              <p className="max-w-2xl text-slate-300 text-sm md:text-base">
-                The worksheet is parsed a single time, reviewed by admin, then published as a stable shared interface for all users.
-              </p>
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">Platform workflow</p>
+              <h2 className="max-w-3xl text-4xl font-black tracking-[-0.04em] text-slate-950 dark:text-white md:text-5xl">
+                A new interface, but the same reliable worksheet pipeline.
+              </h2>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-semibold text-slate-200">
-              Consistency first: question type, order, and feedback stay the same for every learner.
-            </div>
+            <p className="max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-300">
+              No logic was changed here. Upload, parse, review, publish, and practice still follow the same system. This update is presentation-focused and theme-aware.
+            </p>
           </div>
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-300">01</p>
-              <h3 className="mt-3 text-xl font-black">Parse the worksheet</h3>
-              <p className="mt-2 text-sm text-slate-300">Gemini extracts question type, order, and answer structure from the uploaded PDF.</p>
-            </div>
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-300">02</p>
-              <h3 className="mt-3 text-xl font-black">Review the draft</h3>
-              <p className="mt-2 text-sm text-slate-300">Admins correct anything needed before the worksheet becomes student-facing.</p>
-            </div>
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-blue-300">03</p>
-              <h3 className="mt-3 text-xl font-black">Publish with confidence</h3>
-              <p className="mt-2 text-sm text-slate-300">Students get the same stored version every time, with clean UI and consistent grading.</p>
-            </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {[
+              {
+                index: "01",
+                title: "Parse on upload",
+                body: "Gemini extracts structure, order, and answer shape the moment the admin uploads the PDF.",
+                icon: FileText,
+              },
+              {
+                index: "02",
+                title: "Review before publish",
+                body: "Admins adjust the draft, validate question types, and publish one stable version.",
+                icon: BookOpenCheck,
+              },
+              {
+                index: "03",
+                title: "Practice without drift",
+                body: "Students always interact with the same stored worksheet version instead of a live re-parse.",
+                icon: ShieldCheck,
+              },
+            ].map((item) => (
+              <div
+                key={item.index}
+                className="rounded-[2rem] border border-slate-200/80 bg-white/78 p-6 shadow-lg shadow-slate-200/40 backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">{item.index}</p>
+                  <item.icon className="h-5 w-5 text-blue-600 dark:text-cyan-300" />
+                </div>
+                <h3 className="mt-8 text-2xl font-black tracking-tight text-slate-950 dark:text-white">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{item.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Main Browsing Section */}
-      <main id="browse" className="max-w-7xl mx-auto px-6 py-24 space-y-16">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-10">
-          <div className="space-y-4 text-center md:text-left">
-            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Browse Library</p>
-            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">Practice with published worksheets</h2>
-            <p className="text-lg text-slate-500 max-w-md">Find reviewed worksheets by grade and subject, then jump straight into practice.</p>
+      <main id="library" className="mx-auto max-w-7xl px-6 py-18">
+        <div className="mb-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-4">
+            <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">Worksheet library</p>
+            <h2 className="text-4xl font-black tracking-[-0.04em] text-slate-950 dark:text-white md:text-5xl">
+              Explore published practice sessions.
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              <Badge className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                {selectedClass ? `Grade: ${selectedClass}` : "All grades"}
+              </Badge>
+              <Badge className="rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                {selectedSubject ? `Subject: ${selectedSubject}` : "All subjects"}
+              </Badge>
+            </div>
           </div>
-          <Suspense fallback={<div className="h-16 animate-pulse bg-slate-200 rounded-xl w-full max-w-md"></div>}>
-            <FilterSection classes={CLASSES} subjects={SUBJECTS} />
-          </Suspense>
+
+          <div className="w-full max-w-2xl">
+            <Suspense fallback={<div className="h-20 animate-pulse rounded-[1.75rem] bg-slate-200/70 dark:bg-white/10" />}>
+              <FilterSection classes={CLASSES} subjects={SUBJECTS} />
+            </Suspense>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {worksheets && worksheets.length > 0 ? (
-            worksheets.map((ws, idx) => (
-              <Card key={ws.id} className="group flex flex-col overflow-hidden border-slate-200 hover:border-blue-300 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-[2.5rem] bg-white">
-                <CardHeader className="p-0">
-                  <div className="aspect-[4/3] bg-slate-100 flex flex-col items-center justify-center border-b border-slate-100 group-hover:bg-blue-50/50 transition-all duration-500 relative overflow-hidden">
-                    <div className="absolute top-4 left-4">
-                       <Badge className="bg-white/80 backdrop-blur-sm text-slate-700 border-slate-200 font-bold px-4 py-1.5 rounded-xl shadow-sm">{ws.class}</Badge>
+            worksheets.map((worksheet, index) => (
+              <Card
+                key={worksheet.id}
+                className="group overflow-hidden rounded-[2.25rem] border border-slate-200/80 bg-white/80 shadow-xl shadow-slate-200/35 backdrop-blur-sm transition-all duration-500 hover:-translate-y-1.5 hover:border-blue-300 dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:hover:border-cyan-400/40"
+              >
+                <CardContent className="p-6">
+                  <div className="rounded-[1.8rem] border border-slate-200/70 bg-[linear-gradient(135deg,rgba(248,250,252,0.95),rgba(219,234,254,0.75))] p-6 dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(15,23,42,0.7),rgba(8,145,178,0.14))]">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <Badge className="rounded-full bg-slate-950 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:bg-cyan-300 dark:text-slate-950">
+                          {worksheet.class}
+                        </Badge>
+                        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-blue-700 dark:text-cyan-300">
+                          {worksheet.subject}
+                        </p>
+                      </div>
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-950 shadow-md dark:bg-white/10 dark:text-white dark:shadow-none">
+                        <FileText className="h-7 w-7" />
+                      </div>
                     </div>
-                    
-                    <div className="w-24 h-24 bg-white rounded-3xl shadow-xl border border-slate-100 flex items-center justify-center text-blue-600 transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-6">
-                      <FileText className="w-12 h-12" />
+
+                    <div className="mt-8">
+                      <h3 className="text-2xl font-black uppercase tracking-tight text-slate-950 dark:text-white">
+                        {worksheet.title}
+                      </h3>
+                      <p className="mt-3 line-clamp-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+                        {worksheet.topic || "Practice the published worksheet in a guided session with consistent question structure and immediate answer feedback."}
+                      </p>
                     </div>
-                    
-                    <div className="absolute bottom-4 left-0 right-0 px-6 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-2 group-hover:translate-y-0">
-                       <div className="bg-blue-600 text-white text-xs font-black uppercase tracking-widest text-center py-2 rounded-xl shadow-lg shadow-blue-200">
-                          {idx % 3 === 0 ? "Highly Recommended" : idx % 2 === 0 ? "New Content" : "Popular Worksheet"}
-                       </div>
+
+                    <div className="mt-6 flex items-center justify-between">
+                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+                        {index % 3 === 0 ? "Fresh review" : index % 2 === 0 ? "Student ready" : "Stable draft"}
+                      </p>
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-white/70 dark:bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-slate-950 dark:bg-cyan-300"
+                          style={{ width: `${60 + ((index % 4) * 10)}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-8 px-8 flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-600"></div>
-                    <p className="text-xs font-black uppercase tracking-widest text-blue-600">{ws.subject}</p>
-                  </div>
-                  <h3 className="text-2xl font-black text-slate-900 mb-2 leading-tight group-hover:text-blue-700 transition-colors uppercase tracking-tight">{ws.title}</h3>
-                  <p className="text-slate-400 font-medium line-clamp-2 text-sm">
-                    {ws.topic || "Practice comprehensive questions focused on key concepts and learning objectives."}
-                  </p>
                 </CardContent>
-                <CardFooter className="px-8 pb-10 pt-4 grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="h-14 border-slate-200 rounded-2xl font-black uppercase text-xs tracking-widest hover:border-blue-200 hover:text-blue-600 transition-all" asChild>
-                    <a href={`/api/worksheets/${ws.id}/pdf`} target="_blank" rel="noopener noreferrer">
-                      <Download className="w-5 h-5 mr-2" />
+
+                <CardFooter className="grid grid-cols-2 gap-3 px-6 pb-6 pt-0">
+                  <Button
+                    variant="outline"
+                    className="h-12 rounded-2xl border-slate-200 bg-white/80 font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10"
+                    asChild
+                  >
+                    <a href={`/api/worksheets/${worksheet.id}/pdf`} target="_blank" rel="noopener noreferrer">
+                      <Download className="mr-2 h-4 w-4" />
                       PDF
                     </a>
                   </Button>
-                  <Button className="h-14 bg-blue-600 hover:bg-blue-700 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-blue-100 transition-all active:scale-95" asChild>
-                    <Link href={`/worksheets/${ws.id}/practice`}>
-                      <Play className="w-5 h-5 mr-2" />
+                  <Button
+                    className="h-12 rounded-2xl bg-slate-950 font-black tracking-tight text-white shadow-lg shadow-slate-300/40 hover:bg-slate-800 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-cyan-500/20 dark:hover:bg-cyan-200"
+                    asChild
+                  >
+                    <Link href={`/worksheets/${worksheet.id}/practice`}>
+                      <Play className="mr-2 h-4 w-4 fill-current" />
                       Practice
                     </Link>
                   </Button>
@@ -232,58 +339,48 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
               </Card>
             ))
           ) : (
-            <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-               <div className="w-24 h-24 bg-slate-50 rounded-full mx-auto flex items-center justify-center text-slate-200 mb-6 border border-slate-100">
-                 <Search className="w-12 h-12" />
-               </div>
-               <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Empty classroom!</h3>
-               <p className="text-slate-400 max-w-sm mx-auto font-medium text-lg mt-2">We couldn't find any worksheets matching your filters. Try selecting a different grade or subject.</p>
-               <Button variant="outline" asChild className="h-14 px-10 rounded-2xl border-slate-200 text-lg font-bold mt-8 hover:bg-slate-50">
-                 <Link href="/">Clear All Filters</Link>
-               </Button>
+            <div className="col-span-full rounded-[2.5rem] border border-dashed border-slate-300 bg-white/75 px-6 py-18 text-center shadow-lg shadow-slate-200/30 dark:border-white/15 dark:bg-white/5 dark:shadow-none">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-white/10 dark:text-slate-400">
+                <Search className="h-10 w-10" />
+              </div>
+              <h3 className="mt-6 text-3xl font-black uppercase tracking-tight text-slate-950 dark:text-white">No worksheets in this view</h3>
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
+                The library is empty for the current filter combination. Clear the filters or switch grade and subject selections.
+              </p>
+              <Button
+                variant="outline"
+                className="mt-8 h-12 rounded-2xl border-slate-200 bg-white px-8 font-bold text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10"
+                asChild
+              >
+                <Link href="/">Clear filters</Link>
+              </Button>
             </div>
           )}
         </div>
       </main>
 
-      {/* Trust/Stats Section */}
-      <section className="bg-slate-900 py-24 text-white overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl -mr-48 -mt-48"></div>
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-16 relative z-10 text-center">
-            <div className="space-y-4">
-               <div className="text-5xl font-black text-blue-400 tracking-tighter">100%</div>
-               <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">AI Accuracy Goal</p>
-               <p className="text-slate-500 text-sm">Every question is human-reviewed before publishing.</p>
+      <footer className="border-t border-slate-200/70 py-10 dark:border-white/10">
+        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-lg font-black text-white dark:bg-cyan-300 dark:text-slate-950">
+              P
             </div>
-            <div className="space-y-4">
-               <div className="text-5xl font-black text-white tracking-tighter">LKG-12</div>
-               <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Complete Coverage</p>
-               <p className="text-slate-500 text-sm">Designed for every student from kindergarten to high school.</p>
+            <div>
+              <p className="text-base font-black tracking-tight text-slate-950 dark:text-white">PDF Finder</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Created by Rayyan Shaik</p>
             </div>
-            <div className="space-y-4">
-               <div className="text-5xl font-black text-emerald-400 tracking-tighter">FREE</div>
-               <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Forever Open</p>
-               <p className="text-slate-500 text-sm">Access to premium educational content without barriers.</p>
-            </div>
-        </div>
-      </section>
+          </div>
 
-      {/* Footer */}
-      <footer className="bg-white py-16 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 border-t border-slate-100 pt-16 uppercase tracking-widest font-black text-[10px] text-slate-400">
-           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white text-lg">P</div>
-             <span className="text-slate-900 text-base">PDF FINDER</span>
-           </div>
-           <nav className="flex flex-wrap justify-center gap-8">
-             <Link href="/" className="hover:text-blue-600 transition-colors">Home</Link>
+          <div className="flex flex-wrap items-center gap-5 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            <Link href="/" className="transition-colors hover:text-blue-700 dark:hover:text-cyan-300">Home</Link>
+            <Link href="#workflow" className="transition-colors hover:text-blue-700 dark:hover:text-cyan-300">Workflow</Link>
+            <Link href="#library" className="transition-colors hover:text-blue-700 dark:hover:text-cyan-300">Library</Link>
             {auth.profile?.role === "admin" && (
-              <Link href="/admin" className="hover:text-blue-600 transition-colors">Admin</Link>
+              <Link href="/admin" className="transition-colors hover:text-blue-700 dark:hover:text-cyan-300">Admin</Link>
             )}
-            <Link href="#browse" className="hover:text-blue-600 transition-colors">Browse</Link>
-           </nav>
-           <p className="text-sm font-black tracking-tight text-slate-900 normal-case">Created by Rayyan Shaik</p>
-           <p>© 2026 PDF FINDER PROJECT</p>
+          </div>
+
+          <p className="text-sm text-slate-500 dark:text-slate-400">© 2026 PDF Finder Project</p>
         </div>
       </footer>
     </div>
