@@ -23,6 +23,26 @@ function getQuestionOptions(question: Question) {
   return question.answer_options || [];
 }
 
+function getPromptTextClasses(questionText: string) {
+  const normalizedText = questionText.trim();
+  const lineCount = normalizedText.split("\n").filter(Boolean).length;
+  const characterCount = normalizedText.length;
+
+  if (lineCount >= 5 || characterCount >= 260) {
+    return "text-[0.95rem] md:text-[1.22rem] leading-7 md:leading-8";
+  }
+
+  if (lineCount >= 4 || characterCount >= 190) {
+    return "text-[1rem] md:text-[1.45rem] leading-7 md:leading-9";
+  }
+
+  if (lineCount >= 3 || characterCount >= 130) {
+    return "text-[1.02rem] md:text-[1.62rem] leading-7 md:leading-9";
+  }
+
+  return "text-[1.05rem] md:text-[1.8rem] leading-relaxed";
+}
+
 export default function PracticePage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
   const id = unwrappedParams.id;
@@ -207,6 +227,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const options = getQuestionOptions(currentQ);
   const usesChoiceUi = currentQ.question_type !== "short" && options.length > 0;
   const currentQuestionNote = questionNotes[currentQuestionKey] ?? "";
+  const promptTextClasses = getPromptTextClasses(currentQ.question_text);
 
   return (
     <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_22%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_20%),linear-gradient(180deg,#020617_0%,#0f172a_100%)] text-slate-950 dark:text-white flex flex-col">
@@ -259,7 +280,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                </div>
                <div className="rounded-[1.75rem] border border-slate-100 dark:border-white/10 bg-gradient-to-br from-slate-50 via-white to-blue-50/60 dark:from-white/5 dark:via-white/[0.03] dark:to-cyan-400/10 px-5 py-4 shadow-sm">
                   <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Worksheet Prompt</p>
-                  <h2 className="whitespace-pre-line text-[1.05rem] md:text-[1.8rem] font-bold text-slate-800 dark:text-white leading-relaxed">
+                  <h2 className={cn("whitespace-pre-line font-bold text-slate-800 dark:text-white", promptTextClasses)}>
                     {currentQ.question_text}
                   </h2>
                </div>
