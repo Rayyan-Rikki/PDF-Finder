@@ -249,8 +249,37 @@ function isLikelySubpartQuestion(text: string) {
   return /^\s*\((?:[ivxlcdm]+|[a-z]|\d+)\)\s+/i.test(text);
 }
 
+function getTopLevelQuestionNumber(text: string) {
+  const match = text.match(/^\s*(?:q(?:uestion)?\s*)?(\d{1,3})(?:\s*[\).:-]|\s+)/i);
+  return match?.[1];
+}
+
+function hasTopLevelQuestionNumber(text: string) {
+  return Boolean(getTopLevelQuestionNumber(text));
+}
+
 function hasSubpartMarkers(text: string) {
   return /\((?:[ivxlcdm]+|[a-z]|\d+)\)\s+/i.test(text);
+}
+
+function getLeadingSubpartLabel(text: string) {
+  const match = text.match(/^\s*(\((?:[ivxlcdm]+|[a-z]|\d+)\))\s+/i);
+  return match?.[1];
+}
+
+function isInstructionStem(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  if (hasSubpartMarkers(normalized) || normalized.includes("?")) {
+    return false;
+  }
+
+  return /^(q(?:uestion)?\s*\d+[\).:-]?\s*)?(choose|choose the correct answer|select|tick|write|answer|solve|simplify|complete|fill in|find|match|rewrite|circle|state)\b/.test(
+    normalized
+  );
 }
 
 function mergeMultilineText(...values: Array<string | undefined>) {
@@ -271,7 +300,10 @@ function canMergeIntoPreviousQuestion(previous: ExtractedQuestion, current: Extr
     return false;
   }
 
-  if (!isLikelySubpartQuestion(current.question_text)) {
+  const previousTopLevelNumber = getTopLevelQuestionNumber(previous.question_text);
+  const currentTopLevelNumber = getTopLevelQuestionNumber(current.question_text);
+
+  if (currentTopLevelNumber) {
     return false;
   }
 
@@ -287,7 +319,36 @@ function canMergeIntoPreviousQuestion(previous: ExtractedQuestion, current: Extr
     return false;
   }
 
+  if (previous.question_type !== current.question_type && previous.question_type !== "short") {
+    return false;
+  }
+
+  if (previousTopLevelNumber) {
+    return true;
+  }
+
+  if (isLikelySubpartQuestion(current.question_text)) {
+    return true;
+  }
+
+  if (isInstructionStem(previous.question_text)) {
+    return true;
+  }
+
+  if (hasSubpartMarkers(previous.question_text)) {
+    return true;
+  }
+
   return true;
+}
+
+function formatGroupedAnswer(questionText: string, answerText: string) {
+  const label = getLeadingSubpartLabel(questionText);
+  if (!label || hasSubpartMarkers(answerText)) {
+    return answerText;
+  }
+
+  return `${label} ${answerText}`.trim();
 }
 
 function mergeBrokenCompoundQuestions(questions: ExtractedQuestion[]) {
@@ -301,11 +362,19 @@ function mergeBrokenCompoundQuestions(questions: ExtractedQuestion[]) {
       continue;
     }
 
+    const previousWasInstructionStem = isInstructionStem(previous.question_text);
     previous.question_text = mergeMultilineText(previous.question_text, question.question_text);
+
+    const previousBaseAnswer =
+      previousWasInstructionStem && !hasSubpartMarkers(previous.answer_text)
+        ? ""
+        : previous.answer_text;
+    const groupedCurrentAnswer = formatGroupedAnswer(question.question_text, question.answer_text);
+
     previous.answer_text =
-      hasSubpartMarkers(previous.answer_text) && !hasSubpartMarkers(question.answer_text)
-        ? previous.answer_text
-        : mergeMultilineText(previous.answer_text, question.answer_text);
+      hasSubpartMarkers(previousBaseAnswer) && !hasSubpartMarkers(groupedCurrentAnswer)
+        ? previousBaseAnswer
+        : mergeMultilineText(previousBaseAnswer, groupedCurrentAnswer);
 
     if (question.explanation) {
       previous.explanation = mergeMultilineText(previous.explanation, question.explanation);
@@ -323,7 +392,10 @@ function mergeBrokenCompoundQuestions(questions: ExtractedQuestion[]) {
     ];
     previous.accepted_answer_variants = combinedVariants.length > 0 ? Array.from(new Set(combinedVariants)) : undefined;
 
-    if ((!previous.layout_hint || previous.layout_hint === "short_line") && hasSubpartMarkers(previous.question_text)) {
+    if (
+      (!previous.layout_hint || previous.layout_hint === "short_line") &&
+      (hasSubpartMarkers(previous.question_text) || hasTopLevelQuestionNumber(previous.question_text))
+    ) {
       previous.layout_hint = "paragraph_answer";
     }
   }
@@ -440,10 +512,15 @@ export async function extractQuizFromPDF(pdfBase64: string): Promise<ExtractionR
     - generation_basis: "extracted" when directly preserved from the PDF, "generated_similar" only when the original is unreadable or incomplete
     - style_notes (optional short note about why the question matches the worksheet style)
     Requirements:
+    - Count worksheet questions by their top-level numbering only, such as Q1, Q2, 1., 2), 3:, etc. Do not treat every new line as a new question.
     - Preserve question order exactly and set source_order sequentially.
     - Preserve question type exactly when readable: if the worksheet shows MCQ, keep MCQ; if it shows short answer, keep short answer; if it shows true/false, keep true/false.
+    - If the worksheet has a parent instruction such as "Choose the correct answer", "Answer the following", or "Simplify", followed by subparts like (i), (ii), (iii), keep the instruction and all subparts together in one single question_text block.
+    - In grouped questions, question_text should look like a worksheet block, for example:
+      "Q1 Choose the correct answer\n(i) first sub-question\n(ii) second sub-question"
     - If one worksheet question contains subparts such as (i), (ii), (iii), (a), (b), or numbered mini-parts, keep them inside a single question_text entry with line breaks. Do not split one numbered worksheet question into multiple separate questions.
-    - For grouped subpart questions, answer_text should also stay grouped in the same order as the subparts instead of producing separate question entries.
+    - If a line continues the same numbered question, append it to the current question_text instead of creating a new question.
+    - For grouped subpart questions, answer_text should also stay grouped in the same order as the subparts, preferably with labels like "(i) ..." and "(ii) ...", instead of producing separate question entries.
     - Keep questions aligned to the source worksheet's content. Do not invent unrelated topics.
     - Keep answers factual and concise.
     - Include accepted_answer_variants whenever more than one student phrasing should be accepted.

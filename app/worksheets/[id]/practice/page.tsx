@@ -209,9 +209,9 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
   const currentQuestionNote = questionNotes[currentQuestionKey] ?? "";
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-950 dark:text-white flex flex-col">
+    <div className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_22%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_20%),linear-gradient(180deg,#020617_0%,#0f172a_100%)] text-slate-950 dark:text-white flex flex-col">
       {/* Header */}
-      <nav className="bg-white/95 dark:bg-slate-950/90 backdrop-blur-sm border-b border-slate-100 dark:border-white/10 h-16 flex items-center px-4 md:px-6 sticky top-0 z-50">
+      <nav className="bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-b border-slate-100 dark:border-white/10 h-16 flex items-center px-4 md:px-6 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between gap-4">
            <div className="flex min-w-0 items-center gap-3 md:gap-4">
               <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-slate-50 dark:hover:bg-white/10 text-slate-400 dark:text-slate-200" asChild>
@@ -247,21 +247,24 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
 
       <main className="flex-1 min-h-0 flex items-center justify-center p-3 md:p-4">
         <div className="max-w-5xl w-full h-full flex flex-col justify-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card className="border-none shadow-xl dark:shadow-none rounded-[2rem] overflow-hidden bg-white dark:bg-white/5 dark:border dark:border-white/10 flex flex-col flex-1 min-h-0">
+          <Card className="border-none shadow-[0_30px_80px_rgba(15,23,42,0.14)] dark:shadow-none rounded-[2rem] overflow-hidden bg-white/96 dark:bg-white/5 dark:border dark:border-white/10 backdrop-blur-sm flex flex-col flex-1 min-h-0">
             <CardHeader className="p-5 md:p-6 pb-3 md:pb-4">
-               <div className="mb-3 flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center px-3 py-1 bg-blue-50 dark:bg-cyan-400/10 text-blue-600 dark:text-cyan-200 rounded-xl text-[10px] font-black uppercase tracking-widest">
+               <div className="mb-4 flex items-center justify-between gap-2">
+                  <div className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-cyan-400/10 dark:to-blue-500/10 text-blue-700 dark:text-cyan-200 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">
                      Question {currentIndex + 1}
                   </div>
-                  <div className="inline-flex items-center px-3 py-1 bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                  <div className="inline-flex items-center px-3 py-1.5 bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 rounded-full text-[10px] font-black uppercase tracking-widest">
                      Page {currentQ.source_page || "?"}
                   </div>
                </div>
-               <h2 className="text-xl md:text-3xl font-bold text-slate-800 dark:text-white leading-tight mb-2">
-                  {currentQ.question_text}
-               </h2>
+               <div className="rounded-[1.75rem] border border-slate-100 dark:border-white/10 bg-gradient-to-br from-slate-50 via-white to-blue-50/60 dark:from-white/5 dark:via-white/[0.03] dark:to-cyan-400/10 px-5 py-4 shadow-sm">
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">Worksheet Prompt</p>
+                  <h2 className="whitespace-pre-line text-[1.05rem] md:text-[1.8rem] font-bold text-slate-800 dark:text-white leading-relaxed">
+                    {currentQ.question_text}
+                  </h2>
+               </div>
             </CardHeader>
-            <CardContent className="px-5 md:px-6 pb-5 md:pb-6 space-y-6 flex-1 min-h-0 overflow-y-auto">
+            <CardContent className="px-5 md:px-6 pb-5 md:pb-6 space-y-6 flex-1 min-h-0 overflow-y-auto bg-[linear-gradient(180deg,rgba(255,255,255,0),rgba(248,250,252,0.75))] dark:bg-none">
                <div className="space-y-4">
                   <Label htmlFor="answer" className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400 ml-1">Your Response</Label>
                   {!usesChoiceUi ? (
@@ -285,7 +288,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                       {feedback === "incorrect" && <X className="absolute right-5 top-1/2 -translate-y-1/2 w-6 h-6 text-red-500 animate-in zoom-in duration-300" />}
                     </div>
                   ) : (
-                    <div className="grid gap-2.5 md:grid-cols-[minmax(0,1fr)_190px] md:items-start">
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px] md:items-start">
                       <div className="grid grid-cols-2 gap-1.5 md:gap-2">
                         {options.map((option, optionIndex) => {
                           const isSelected = userAnswer === option;
@@ -302,10 +305,12 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                               disabled={feedback !== "none"}
                               onClick={() => setUserAnswer(option)}
                               className={cn(
-                                "h-auto min-h-[50px] md:min-h-[56px] justify-start whitespace-normal rounded-2xl border-2 px-3 py-3 md:px-4 md:py-3 text-left text-sm md:text-base leading-snug font-medium shadow-none transition-all active:scale-[0.98]",
-                                isSelected && feedback === "none" ? "border-blue-500 bg-blue-50/50 text-slate-800 shadow-sm shadow-blue-100" : "border-slate-100 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
-                                showCorrect ? "border-[#0A995C] bg-[#E6F5EE] text-[#0A995C] font-bold" : "",
-                                showIncorrect ? "border-red-500 bg-red-50 text-red-600 font-bold" : "",
+                                "h-auto min-h-[54px] md:min-h-[60px] justify-start whitespace-normal rounded-[1.35rem] border px-3 py-3 md:px-4 md:py-3 text-left text-sm md:text-base leading-snug font-medium shadow-sm transition-all active:scale-[0.98]",
+                                isSelected && feedback === "none"
+                                  ? "border-blue-500 bg-gradient-to-br from-blue-50 to-white text-slate-800 shadow-blue-100"
+                                  : "border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-white/[0.04] text-slate-600 dark:text-slate-200 hover:border-slate-300 dark:hover:border-cyan-300/40 hover:bg-slate-50 dark:hover:bg-white/[0.08]",
+                                showCorrect ? "border-[#0A995C] bg-[#E6F5EE] text-[#0A995C] font-bold shadow-emerald-100" : "",
+                                showIncorrect ? "border-red-500 bg-red-50 text-red-600 font-bold shadow-red-100" : "",
                                 feedback !== "none" && !showCorrect && !showIncorrect ? "opacity-60 saturate-50" : ""
                               )}
                             >
@@ -313,7 +318,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                                 <span
                                   className={cn(
                                     "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors",
-                                    isSelected && feedback === "none" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-500",
+                                    isSelected && feedback === "none" ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300",
                                     showCorrect ? "bg-[#0A995C] text-white" : "",
                                     showIncorrect ? "bg-red-500 text-white" : ""
                                   )}
@@ -327,10 +332,10 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                         })}
                       </div>
 
-                      <div className="rounded-2xl border-2 border-slate-100 bg-white shadow-sm flex flex-col overflow-hidden">
-                        <div className="flex flex-col gap-0.5 px-4 pt-4 pb-2">
+                      <div className="rounded-[1.5rem] border border-slate-200/80 dark:border-white/10 bg-gradient-to-b from-white to-slate-50 dark:from-white/[0.06] dark:to-white/[0.03] shadow-sm flex flex-col overflow-hidden">
+                        <div className="flex flex-col gap-0.5 px-4 pt-4 pb-2 border-b border-slate-100 dark:border-white/10">
                           <span className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-600">Quick Note</span>
-                          <Label htmlFor="question-note" className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          <Label htmlFor="question-note" className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                             Scratchpad
                           </Label>
                         </div>
@@ -344,7 +349,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                             }))
                           }
                           placeholder="Write a short note..."
-                          className="flex-1 min-h-[100px] resize-none border-0 rounded-none bg-white px-4 py-2 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-300"
+                          className="flex-1 min-h-[110px] resize-none border-0 rounded-none bg-transparent px-4 py-3 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-slate-300 dark:placeholder:text-slate-600"
                         />
                       </div>
                     </div>
@@ -416,7 +421,7 @@ export default function PracticePage({ params }: { params: Promise<{ id: string 
                  </div>
                )}
             </CardContent>
-            <CardFooter className="px-5 md:px-6 py-6 border-t border-slate-100 bg-white/50">
+            <CardFooter className="px-5 md:px-6 py-6 border-t border-slate-100 dark:border-white/10 bg-white/70 dark:bg-white/[0.03]">
                {feedback === "none" ? (
                  <Button className="w-full h-14 rounded-[1rem] bg-blue-600 hover:bg-blue-700 text-base font-bold uppercase tracking-widest transition-all active:scale-95 shadow-md shadow-blue-600/20" onClick={() => checkAnswer()}>
                    {usesChoiceUi ? "Check Selection" : "Validate Answer"}

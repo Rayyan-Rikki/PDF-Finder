@@ -192,4 +192,100 @@ describe("parseExtractionResult", () => {
       layout_hint: "paragraph_answer",
     });
   });
+
+  it("merges instruction stems with following subparts into one grouped worksheet question", () => {
+    const result = parseExtractionResult(`
+      {
+        "questions": [
+          {
+            "question_text": "Q1 Choose the correct answer",
+            "answer_text": "See grouped answers",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 1,
+            "generation_basis": "extracted"
+          },
+          {
+            "question_text": "(i) 2 + 3 = ?",
+            "answer_text": "5",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 2,
+            "generation_basis": "extracted"
+          },
+          {
+            "question_text": "(ii) 7 - 4 = ?",
+            "answer_text": "3",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 3,
+            "generation_basis": "extracted"
+          }
+        ]
+      }
+    `);
+
+    expect(result.questions).toHaveLength(1);
+    expect(result.questions[0]).toMatchObject({
+      question_text: "Q1 Choose the correct answer\n(i) 2 + 3 = ?\n(ii) 7 - 4 = ?",
+      answer_text: "(i) 5\n(ii) 3",
+      question_type: "short",
+      source_order: 1,
+      layout_hint: "paragraph_answer",
+    });
+  });
+
+  it("uses top-level numbering instead of line breaks when grouping worksheet questions", () => {
+    const result = parseExtractionResult(`
+      {
+        "questions": [
+          {
+            "question_text": "1. Write the following in exponential form",
+            "answer_text": "(i) 2 × 2 × 2\\n(ii) 5 × 5",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 1,
+            "generation_basis": "extracted"
+          },
+          {
+            "question_text": "(i) 2 × 2 × 2",
+            "answer_text": "2^3",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 2,
+            "generation_basis": "extracted"
+          },
+          {
+            "question_text": "(ii) 5 × 5",
+            "answer_text": "5^2",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 3,
+            "generation_basis": "extracted"
+          },
+          {
+            "question_text": "2. Find the value of 10^2",
+            "answer_text": "100",
+            "question_type": "short",
+            "source_page": 1,
+            "source_order": 4,
+            "generation_basis": "extracted"
+          }
+        ]
+      }
+    `);
+
+    expect(result.questions).toHaveLength(2);
+    expect(result.questions[0]).toMatchObject({
+      question_text: "1. Write the following in exponential form\n(i) 2 × 2 × 2\n(ii) 5 × 5",
+      answer_text: "(i) 2^3\n(ii) 5^2",
+      source_order: 1,
+      layout_hint: "paragraph_answer",
+    });
+    expect(result.questions[1]).toMatchObject({
+      question_text: "2. Find the value of 10^2",
+      answer_text: "100",
+      source_order: 2,
+    });
+  });
 });
